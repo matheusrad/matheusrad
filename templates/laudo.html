@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Laudo Odontológico</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Arial', sans-serif; font-size: 11pt; color: #1a1a1a; background: #fff; }
+  .page { max-width: 210mm; margin: 0 auto; padding: 15mm 20mm; }
+
+  .header { display: flex; align-items: center; border-bottom: 3px solid #7c3aed; padding-bottom: 12px; margin-bottom: 20px; }
+  .header-info h1 { font-size: 16pt; color: #7c3aed; font-weight: bold; }
+  .header-info p { font-size: 9pt; color: #555; }
+  .doc-title { text-align: right; margin-left: auto; }
+  .doc-title h2 { font-size: 14pt; color: #4c1d95; font-weight: bold; }
+  .doc-title .numero { font-size: 9pt; color: #777; }
+
+  .dados-doc { background: #f5f3ff; border: 1px solid #7c3aed; border-radius: 6px; padding: 10px 16px; margin-bottom: 20px; }
+  .dados-doc .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .dados-doc label { font-size: 8pt; color: #6b21a8; font-weight: bold; display: block; }
+  .dados-doc span { font-size: 10pt; }
+
+  .secao { margin-bottom: 18px; }
+  .secao-titulo { background: #7c3aed; color: white; padding: 6px 12px; font-size: 10pt; font-weight: bold; border-radius: 4px; margin-bottom: 10px; }
+
+  .conteudo-laudo { border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; background: #fafafa; font-size: 10.5pt; line-height: 1.7; min-height: 80px; }
+  .conteudo-laudo p { margin-bottom: 8px; }
+  .conteudo-laudo strong { color: #4c1d95; }
+
+  .diagnostico-box { background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0 6px 6px 0; padding: 10px 14px; margin-bottom: 16px; }
+  .diagnostico-box .label { font-size: 9pt; font-weight: bold; color: #92400e; margin-bottom: 4px; }
+  .diagnostico-box .valor { font-size: 11pt; font-weight: bold; }
+
+  .cid-box { display: inline-block; background: #ede9fe; border: 1px solid #7c3aed; border-radius: 4px; padding: 3px 10px; font-size: 9pt; color: #4c1d95; font-weight: bold; margin-right: 6px; }
+
+  .parecer { background: #ecfdf5; border: 1px solid #059669; border-radius: 6px; padding: 12px; margin-bottom: 16px; }
+  .parecer .label { font-size: 9pt; font-weight: bold; color: #065f46; margin-bottom: 4px; }
+
+  .assinatura-area { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+  .assinatura-bloco { text-align: center; }
+  .assinatura-linha { border-top: 1px solid #333; padding-top: 6px; }
+  .assinatura-nome { font-weight: bold; font-size: 10.5pt; }
+  .assinatura-cro { font-size: 9pt; color: #555; }
+
+  .validade-laudo { text-align: center; margin-top: 14px; font-size: 8.5pt; color: #666; }
+
+  .footer { margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 10px; font-size: 8pt; color: #888; text-align: center; }
+
+  @media print {
+    body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="header-info">
+      <h1>{{NOME_FANTASIA}}</h1>
+      <p>{{ENDERECO_CONSULTORIO}} &bull; {{TELEFONE_CONSULTORIO}}</p>
+      <p>{{EMAIL_CONSULTORIO}}</p>
+    </div>
+    <div class="doc-title">
+      <h2>LAUDO ODONTOLÓGICO</h2>
+      <div class="numero">Nº {{NUMERO_LAUDO}}</div>
+    </div>
+  </div>
+
+  <div class="dados-doc">
+    <div class="grid">
+      <div><label>Paciente</label><span>{{NOME_PACIENTE}}</span></div>
+      <div><label>Data de Nascimento</label><span>{{DATA_NASCIMENTO}}</span></div>
+      <div><label>CPF</label><span>{{CPF}}</span></div>
+      <div><label>Data do Laudo</label><span>{{DATA_EMISSAO}}</span></div>
+    </div>
+  </div>
+
+  <!-- MOTIVO DO EXAME -->
+  <div class="secao">
+    <div class="secao-titulo">📋 MOTIVO DO EXAME / SOLICITAÇÃO</div>
+    <div class="conteudo-laudo">{{MOTIVO_EXAME}}</div>
+  </div>
+
+  <!-- ANAMNESE RELEVANTE -->
+  <div class="secao">
+    <div class="secao-titulo">📝 ANAMNESE RELEVANTE</div>
+    <div class="conteudo-laudo">{{ANAMNESE_RELEVANTE}}</div>
+  </div>
+
+  <!-- EXAME CLÍNICO -->
+  <div class="secao">
+    <div class="secao-titulo">🔬 EXAME CLÍNICO ODONTOLÓGICO</div>
+    <div class="conteudo-laudo">{{EXAME_CLINICO}}</div>
+  </div>
+
+  <!-- EXAMES COMPLEMENTARES -->
+  <div class="secao">
+    <div class="secao-titulo">📸 EXAMES COMPLEMENTARES</div>
+    <div class="conteudo-laudo">{{EXAMES_COMPLEMENTARES}}</div>
+  </div>
+
+  <!-- DIAGNÓSTICO -->
+  <div class="diagnostico-box">
+    <div class="label">DIAGNÓSTICO</div>
+    <div class="valor">{{DIAGNOSTICO}}</div>
+    <div style="margin-top:6px">
+      <span class="cid-box">CID-10: {{CID10}}</span>
+      <span style="font-size:9pt;color:#555">{{DESCRICAO_CID}}</span>
+    </div>
+  </div>
+
+  <!-- TRATAMENTO REALIZADO / PROPOSTO -->
+  <div class="secao">
+    <div class="secao-titulo">⚕️ TRATAMENTO REALIZADO / PROPOSTO</div>
+    <div class="conteudo-laudo">{{TRATAMENTO}}</div>
+  </div>
+
+  <!-- PARECER / CONCLUSÃO -->
+  <div class="parecer">
+    <div class="label">✅ PARECER / CONCLUSÃO</div>
+    <div>{{CONCLUSAO}}</div>
+  </div>
+
+  <!-- RECOMENDAÇÕES -->
+  <div class="secao">
+    <div class="secao-titulo">📌 RECOMENDAÇÕES</div>
+    <div class="conteudo-laudo">{{RECOMENDACOES}}</div>
+  </div>
+
+  <div class="assinatura-area">
+    <div class="assinatura-bloco">
+      <div style="height:50px"></div>
+      <div class="assinatura-linha">
+        <div class="assinatura-nome">Dra. {{NOME_DENTISTA}}</div>
+        <div class="assinatura-cro">CRO-{{UF_CRO}} {{CRO_DENTISTA}}</div>
+        <div class="assinatura-cro">{{ESPECIALIDADE}}</div>
+      </div>
+    </div>
+    <div class="assinatura-bloco">
+      <div style="height:50px"></div>
+      <div class="assinatura-linha">
+        <div class="assinatura-nome">{{CIDADE_CONSULTORIO}}, {{DATA_EMISSAO}}</div>
+        <div class="assinatura-cro">Local e Data</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="validade-laudo">
+    Este laudo é válido por 90 dias a partir da data de emissão. Documento gerado eletronicamente.
+  </div>
+
+  <div class="footer">
+    Laudo Nº {{NUMERO_LAUDO}} — {{NOME_FANTASIA}} — CRO {{CRO_DENTISTA}} — {{DATA_EMISSAO}}
+  </div>
+</div>
+</body>
+</html>

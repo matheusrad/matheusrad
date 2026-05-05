@@ -1,0 +1,239 @@
+{
+  "name": "03 - Anamnese Primeiro Atendimento",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "novo-paciente",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "trigger-novo-paciente",
+      "name": "Webhook — Detecta Novo Paciente",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Ativado pelo workflow 01 quando o paciente identificado como NOVO confirma agendamento."
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.EVOLUTION_API_URL }}/message/sendText/{{ $vars.EVOLUTION_INSTANCE }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.EVOLUTION_API_KEY }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.telefone }}\",\n  \"text\": \"Olá, {{ $json.nomePaciente }}! Seja bem-vindo(a) ao consultório da Dra. [NOME]! 🦷\\n\\nComo é sua primeira consulta, preparamos um formulário de anamnese para conhecê-lo(a) melhor antes da sua visita.\\n\\nPor favor, preencha com atenção — leva apenas 3 minutinhos:\\n\\n📋 *{{ $vars.GOOGLE_FORMS_ANAMNESE_URL }}*\\n\\nQualquer dúvida, é só perguntar! Até logo! 😊\"\n}",
+        "options": {}
+      },
+      "id": "envia-link-anamnese",
+      "name": "Envia Link Anamnese WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "anamnese-resposta",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-anamnese-preenchida",
+      "name": "Webhook — Anamnese Preenchida (Google Forms)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 600],
+      "notes": "Configure no Google Forms: Extensões → Apps Script → adicione um trigger POST para este webhook quando o formulário for enviado."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Processa respostas do Google Forms\nconst dados = $input.first().json;\n\n// Mapeamento dos campos do formulário Google Forms\n// Os nomes dos campos devem corresponder ao seu formulário\nconst anamnese = {\n  // Dados pessoais\n  nomePaciente: dados['Nome completo'] || dados.nome || '',\n  dataNascimento: dados['Data de nascimento'] || dados.nascimento || '',\n  cpf: dados['CPF'] || dados.cpf || '',\n  telefone: dados['Telefone/WhatsApp'] || dados.telefone || '',\n  email: dados['E-mail'] || dados.email || '',\n  endereco: dados['Endereço completo'] || dados.endereco || '',\n  profissao: dados['Profissão'] || dados.profissao || '',\n  \n  // Histórico médico\n  motivoConsulta: dados['Qual o motivo da sua consulta?'] || '',\n  temDorAtual: dados['Está com dor atualmente?'] || 'Não',\n  localDor: dados['Se sim, onde é a dor?'] || '',\n  ultimaConsultaDentista: dados['Quando foi sua última consulta com dentista?'] || '',\n  \n  // Saúde geral\n  usaMedicamento: dados['Faz uso de algum medicamento?'] || 'Não',\n  qualMedicamento: dados['Qual medicamento?'] || '',\n  temAlergia: dados['Tem alergia a algum medicamento ou material?'] || 'Não',\n  qualAlergia: dados['Qual alergia?'] || '',\n  temDoencaSistemica: dados['Tem alguma doença sistêmica?'] || 'Não',\n  qualDoencaSistemica: dados['Qual doença?'] || '',\n  \n  // Condições específicas\n  hipertensao: dados['Hipertensão (pressão alta)?'] || 'Não',\n  diabetes: dados['Diabetes?'] || 'Não',\n  problemaCardiaco: dados['Problema cardíaco?'] || 'Não',\n  gestante: dados['Está grávida? (para mulheres)'] || 'Não',\n  fuma: dados['Fuma?'] || 'Não',\n  tomaBebidaAlcoolica: dados['Consome bebida alcoólica?'] || 'Não',\n  \n  // Histórico odontológico\n  jaFezCirurgiaOdonto: dados['Já fez alguma cirurgia odontológica?'] || 'Não',\n  sangramentoAposProcedimento: dados['Já teve sangramento após procedimento dentário?'] || 'Não',\n  temMedoTratamentoDental: dados['Tem medo ou ansiedade de tratamento dentário?'] || 'Não',\n  observacoesAdicionais: dados['Observações adicionais'] || ''\n};\n\nreturn [{ json: anamnese }];"
+      },
+      "id": "processa-formulario",
+      "name": "Processa Respostas do Formulário",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 600]
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-6\",\n  \"max_tokens\": 2048,\n  \"system\": {{ JSON.stringify($vars.PROMPT_ANAMNESE) }},\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Gere um documento de anamnese odontológica completo e profissional com os seguintes dados do paciente:\\n\\n{{ JSON.stringify($json, null, 2) }}\\n\\nFormate em HTML limpo, pronto para impressão, com todas as seções organizadas.\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "claude-gera-anamnese",
+      "name": "Claude AI — Gera Documento Anamnese",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 600]
+    },
+    {
+      "parameters": {
+        "jsCode": "const htmlAnamnese = $input.first().json.content[0].text;\nconst paciente = $('Processa Respostas do Formulário').item.json;\n\n// Injeta o HTML gerado pelo Claude no template\nreturn [{\n  json: {\n    htmlContent: htmlAnamnese,\n    nomePaciente: paciente.nomePaciente,\n    telefone: paciente.telefone,\n    dataGeracao: new Date().toLocaleDateString('pt-BR')\n  }\n}];"
+      },
+      "id": "prepara-html",
+      "name": "Prepara HTML para PDF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 600]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.GOTENBERG_URL }}/forms/chromium/convert/html",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "files",
+              "value": "={{ $json.htmlContent }}",
+              "parameterType": "formBinaryData"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "pdfData"
+            }
+          }
+        }
+      },
+      "id": "gera-pdf",
+      "name": "Converte HTML para PDF (Gotenberg)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 600],
+      "notes": "Gotenberg é um serviço gratuito self-hosted para conversão HTML→PDF. Incluso no docker-compose."
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "name": "=Anamnese — {{ $('Processa Respostas do Formulário').item.json.nomePaciente }} — {{ new Date().toLocaleDateString('pt-BR') }}.pdf",
+        "folderId": "={{ $vars.GOOGLE_DRIVE_ANAMNESES_FOLDER_ID }}",
+        "binaryPropertyName": "pdfData",
+        "options": {}
+      },
+      "id": "salva-drive",
+      "name": "Salva PDF no Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1340, 600]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $vars.GOOGLE_SHEETS_PACIENTES_ID }}",
+          "mode": "id"
+        },
+        "sheetName": "Pacientes",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "nome": "={{ $('Processa Respostas do Formulário').item.json.nomePaciente }}",
+            "data_nascimento": "={{ $('Processa Respostas do Formulário').item.json.dataNascimento }}",
+            "cpf": "={{ $('Processa Respostas do Formulário').item.json.cpf }}",
+            "telefone": "={{ $('Processa Respostas do Formulário').item.json.telefone }}",
+            "email": "={{ $('Processa Respostas do Formulário').item.json.email }}",
+            "data_cadastro": "={{ new Date().toLocaleDateString('pt-BR') }}",
+            "link_anamnese": "={{ $('Salva PDF no Google Drive').item.json.webViewLink }}",
+            "status": "Ativo"
+          }
+        },
+        "options": {}
+      },
+      "id": "cadastra-paciente",
+      "name": "Cadastra Paciente na Planilha",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1560, 600]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.EVOLUTION_API_URL }}/message/sendText/{{ $vars.EVOLUTION_INSTANCE }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.EVOLUTION_API_KEY }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $('Processa Respostas do Formulário').item.json.telefone }}\",\n  \"text\": \"Olá, {{ $('Processa Respostas do Formulário').item.json.nomePaciente }}! ✅\\n\\nRecebemos sua anamnese com sucesso! A Dra. [NOME] já está com as suas informações.\\n\\nAté a consulta! 🦷😊\"\n}",
+        "options": {}
+      },
+      "id": "confirma-paciente",
+      "name": "Confirma Recebimento ao Paciente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1780, 600]
+    }
+  ],
+  "connections": {
+    "Webhook — Detecta Novo Paciente": {
+      "main": [
+        [{ "node": "Envia Link Anamnese WhatsApp", "type": "main", "index": 0 }]
+      ]
+    },
+    "Webhook — Anamnese Preenchida (Google Forms)": {
+      "main": [
+        [{ "node": "Processa Respostas do Formulário", "type": "main", "index": 0 }]
+      ]
+    },
+    "Processa Respostas do Formulário": {
+      "main": [
+        [{ "node": "Claude AI — Gera Documento Anamnese", "type": "main", "index": 0 }]
+      ]
+    },
+    "Claude AI — Gera Documento Anamnese": {
+      "main": [
+        [{ "node": "Prepara HTML para PDF", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepara HTML para PDF": {
+      "main": [
+        [{ "node": "Converte HTML para PDF (Gotenberg)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Converte HTML para PDF (Gotenberg)": {
+      "main": [
+        [{ "node": "Salva PDF no Google Drive", "type": "main", "index": 0 }]
+      ]
+    },
+    "Salva PDF no Google Drive": {
+      "main": [
+        [{ "node": "Cadastra Paciente na Planilha", "type": "main", "index": 0 }]
+      ]
+    },
+    "Cadastra Paciente na Planilha": {
+      "main": [
+        [{ "node": "Confirma Recebimento ao Paciente", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["dental", "anamnese", "formulario", "paciente-novo"]
+}

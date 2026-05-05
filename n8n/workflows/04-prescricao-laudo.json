@@ -1,0 +1,278 @@
+{
+  "name": "04 - Prescrição e Laudo Odontológico",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gerar-documento",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-gerar-doc",
+      "name": "Webhook — Gerar Documento",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Pode ser acionado via: formulário simples no celular da dentista, botão no painel, ou mensagem de voz transcrita. Recebe: tipo (prescricao|laudo), dados do paciente, informações clínicas."
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $input.first().json;\n\n// Suporte a entrada por voz (texto transcrito) ou formulário\nconst tipo = dados.tipo || 'prescricao'; // 'prescricao' ou 'laudo'\nconst paciente = dados.paciente || {};\nconst info_clinica = dados.info_clinica || dados.descricao || dados.texto || '';\n\nreturn [{\n  json: {\n    tipo,\n    paciente: {\n      nome: paciente.nome || dados.nomePaciente || '',\n      cpf: paciente.cpf || dados.cpf || '',\n      dataNascimento: paciente.dataNascimento || dados.dataNascimento || '',\n      telefone: paciente.telefone || dados.telefone || ''\n    },\n    info_clinica,\n    dataEmissao: new Date().toLocaleDateString('pt-BR'),\n    numeroDocumento: 'DOC-' + Date.now()\n  }\n}];"
+      },
+      "id": "prepara-dados",
+      "name": "Prepara Dados do Documento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.tipo }}",
+              "operation": "equals",
+              "value2": "prescricao"
+            }
+          ]
+        }
+      },
+      "id": "tipo-doc",
+      "name": "Tipo: Prescrição ou Laudo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-6\",\n  \"max_tokens\": 2048,\n  \"system\": {{ JSON.stringify($vars.PROMPT_PRESCRICAO) }},\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Gere uma prescrição odontológica profissional para:\\n\\nPaciente: {{ $('Prepara Dados do Documento').item.json.paciente.nome }}\\nData de Nascimento: {{ $('Prepara Dados do Documento').item.json.paciente.dataNascimento }}\\nData: {{ $('Prepara Dados do Documento').item.json.dataEmissao }}\\n\\nInformações clínicas / medicamentos a prescrever:\\n{{ $('Prepara Dados do Documento').item.json.info_clinica }}\\n\\nRetorne o HTML completo da prescrição, pronto para impressão.\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "claude-prescricao",
+      "name": "Claude AI — Gera Prescrição",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-6\",\n  \"max_tokens\": 2048,\n  \"system\": {{ JSON.stringify($vars.PROMPT_LAUDO) }},\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Gere um laudo odontológico profissional para:\\n\\nPaciente: {{ $('Prepara Dados do Documento').item.json.paciente.nome }}\\nData de Nascimento: {{ $('Prepara Dados do Documento').item.json.paciente.dataNascimento }}\\nData: {{ $('Prepara Dados do Documento').item.json.dataEmissao }}\\n\\nInformações clínicas / achados / diagnóstico:\\n{{ $('Prepara Dados do Documento').item.json.info_clinica }}\\n\\nRetorne o HTML completo do laudo, pronto para impressão.\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "claude-laudo",
+      "name": "Claude AI — Gera Laudo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "merge-resultado",
+      "name": "Merge Resultado",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const claudeResult = $input.first().json;\nconst htmlDoc = claudeResult.content[0].text;\nconst dadosOriginais = $('Prepara Dados do Documento').item.json;\n\nreturn [{\n  json: {\n    htmlContent: htmlDoc,\n    tipo: dadosOriginais.tipo,\n    nomePaciente: dadosOriginais.paciente.nome,\n    telefone: dadosOriginais.paciente.telefone,\n    numeroDocumento: dadosOriginais.numeroDocumento,\n    dataEmissao: dadosOriginais.dataEmissao\n  }\n}];"
+      },
+      "id": "prepara-pdf",
+      "name": "Prepara Dados para PDF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.GOTENBERG_URL }}/forms/chromium/convert/html",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "files",
+              "value": "={{ $json.htmlContent }}",
+              "parameterType": "formBinaryData"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "pdfData"
+            }
+          }
+        }
+      },
+      "id": "gera-pdf",
+      "name": "Gera PDF (Gotenberg)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "name": "={{ $('Prepara Dados para PDF').item.json.tipo === 'prescricao' ? 'Prescrição' : 'Laudo' }} — {{ $('Prepara Dados para PDF').item.json.nomePaciente }} — {{ $('Prepara Dados para PDF').item.json.dataEmissao }}.pdf",
+        "folderId": "={{ $vars.GOOGLE_DRIVE_DOCUMENTOS_FOLDER_ID }}",
+        "binaryPropertyName": "pdfData",
+        "options": {}
+      },
+      "id": "salva-drive",
+      "name": "Salva no Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.EVOLUTION_API_URL }}/message/sendDocument/{{ $vars.EVOLUTION_INSTANCE }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.EVOLUTION_API_KEY }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $('Prepara Dados para PDF').item.json.telefone }}\",\n  \"mediatype\": \"document\",\n  \"mimetype\": \"application/pdf\",\n  \"caption\": \"{{ $('Prepara Dados para PDF').item.json.tipo === 'prescricao' ? '💊 Sua prescrição odontológica está pronta!' : '📋 Seu laudo odontológico está pronto!' }}\\n\\nDoc. Nº {{ $('Prepara Dados para PDF').item.json.numeroDocumento }}\\nData: {{ $('Prepara Dados para PDF').item.json.dataEmissao }}\\n\\nQualquer dúvida, entre em contato! 😊\",\n  \"media\": \"{{ $('Salva no Google Drive').item.json.webContentLink }}\"\n}",
+        "options": {}
+      },
+      "id": "envia-documento-whatsapp",
+      "name": "Envia PDF via WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $vars.GOOGLE_SHEETS_PACIENTES_ID }}",
+          "mode": "id"
+        },
+        "sheetName": "Documentos",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "numero": "={{ $('Prepara Dados para PDF').item.json.numeroDocumento }}",
+            "tipo": "={{ $('Prepara Dados para PDF').item.json.tipo }}",
+            "paciente": "={{ $('Prepara Dados para PDF').item.json.nomePaciente }}",
+            "data_emissao": "={{ $('Prepara Dados para PDF').item.json.dataEmissao }}",
+            "link_drive": "={{ $('Salva no Google Drive').item.json.webViewLink }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "registra-documento",
+      "name": "Registra Documento na Planilha",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [2000, 460]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"ok\",\n  \"documento\": \"{{ $('Prepara Dados para PDF').item.json.numeroDocumento }}\",\n  \"link\": \"{{ $('Salva no Google Drive').item.json.webViewLink }}\"\n}"
+      },
+      "id": "responde-webhook",
+      "name": "Responde com Link do Documento",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2220, 300]
+    }
+  ],
+  "connections": {
+    "Webhook — Gerar Documento": {
+      "main": [
+        [{ "node": "Prepara Dados do Documento", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepara Dados do Documento": {
+      "main": [
+        [{ "node": "Tipo: Prescrição ou Laudo?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Tipo: Prescrição ou Laudo?": {
+      "main": [
+        [{ "node": "Claude AI — Gera Prescrição", "type": "main", "index": 0 }],
+        [{ "node": "Claude AI — Gera Laudo", "type": "main", "index": 0 }]
+      ]
+    },
+    "Claude AI — Gera Prescrição": {
+      "main": [
+        [{ "node": "Merge Resultado", "type": "main", "index": 0 }]
+      ]
+    },
+    "Claude AI — Gera Laudo": {
+      "main": [
+        [{ "node": "Merge Resultado", "type": "main", "index": 1 }]
+      ]
+    },
+    "Merge Resultado": {
+      "main": [
+        [{ "node": "Prepara Dados para PDF", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepara Dados para PDF": {
+      "main": [
+        [{ "node": "Gera PDF (Gotenberg)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Gera PDF (Gotenberg)": {
+      "main": [
+        [{ "node": "Salva no Google Drive", "type": "main", "index": 0 }]
+      ]
+    },
+    "Salva no Google Drive": {
+      "main": [
+        [
+          { "node": "Envia PDF via WhatsApp", "type": "main", "index": 0 },
+          { "node": "Registra Documento na Planilha", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Envia PDF via WhatsApp": {
+      "main": [
+        [{ "node": "Responde com Link do Documento", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["dental", "prescricao", "laudo", "pdf", "claude"]
+}

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Prescrição Odontológica</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Arial', sans-serif; font-size: 11pt; color: #1a1a1a; background: #fff; }
+  .page { max-width: 148mm; margin: 0 auto; padding: 12mm 15mm; min-height: 210mm; }
+
+  .header { border-bottom: 2px solid #0d7c3d; padding-bottom: 10px; margin-bottom: 14px; }
+  .header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .consultorio-nome { font-size: 14pt; font-weight: bold; color: #0d7c3d; }
+  .consultorio-info { font-size: 8pt; color: #555; margin-top: 3px; }
+  .rx-symbol { font-size: 36pt; font-weight: bold; color: #0d7c3d; line-height: 1; }
+
+  .paciente-box { background: #f0faf4; border: 1px solid #0d7c3d; border-radius: 6px; padding: 8px 12px; margin-bottom: 16px; }
+  .paciente-box .linha { display: flex; gap: 20px; }
+  .paciente-box label { font-size: 8pt; color: #555; font-weight: bold; }
+  .paciente-box span { font-size: 10pt; }
+
+  .medicamentos { margin-bottom: 20px; }
+  .medicamento { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px dashed #ccc; }
+  .medicamento:last-child { border-bottom: none; }
+  .med-numero { background: #0d7c3d; color: white; width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9pt; font-weight: bold; margin-right: 6px; flex-shrink: 0; }
+  .med-nome { font-size: 12pt; font-weight: bold; color: #1a1a1a; display: flex; align-items: center; }
+  .med-forma { font-size: 9pt; color: #666; margin-left: 4px; }
+  .med-posologia { margin-top: 5px; margin-left: 28px; font-size: 10pt; }
+  .med-posologia .label { font-weight: bold; color: #333; }
+  .med-quantidade { margin-top: 3px; margin-left: 28px; font-size: 9pt; color: #555; }
+  .med-observacao { margin-top: 3px; margin-left: 28px; font-size: 9pt; color: #0d7c3d; font-style: italic; }
+
+  .instrucoes { border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px; margin-bottom: 20px; background: #fffbeb; }
+  .instrucoes-titulo { font-size: 9pt; font-weight: bold; color: #92400e; margin-bottom: 6px; }
+  .instrucoes p { font-size: 9pt; color: #444; margin-bottom: 3px; }
+
+  .validade { text-align: center; background: #fee2e2; border: 1px solid #dc2626; border-radius: 4px; padding: 4px 8px; font-size: 8pt; color: #dc2626; font-weight: bold; margin-bottom: 16px; }
+
+  .assinatura { margin-top: 30px; border-top: 1px solid #333; padding-top: 8px; text-align: center; }
+  .assinatura .dentista { font-size: 11pt; font-weight: bold; }
+  .assinatura .cro { font-size: 9pt; color: #555; }
+  .assinatura .data-local { font-size: 8pt; color: #777; margin-top: 2px; }
+
+  .qr-area { float: right; text-align: center; margin-top: 10px; }
+  .qr-placeholder { width: 50px; height: 50px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 7pt; color: #aaa; }
+
+  .footer { margin-top: 20px; font-size: 7.5pt; color: #aaa; text-align: center; border-top: 1px solid #e5e7eb; padding-top: 6px; }
+
+  @media print {
+    body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    .page { padding: 8mm 10mm; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="consultorio-nome">{{NOME_FANTASIA}}</div>
+        <div class="consultorio-info">
+          Dra. {{NOME_DENTISTA}} — CRO {{CRO_DENTISTA}}<br>
+          {{ENDERECO_CONSULTORIO}}<br>
+          {{TELEFONE_CONSULTORIO}} &bull; {{EMAIL_CONSULTORIO}}
+        </div>
+      </div>
+      <div class="rx-symbol">℞</div>
+    </div>
+  </div>
+
+  <div class="paciente-box">
+    <div class="linha">
+      <div><label>Paciente:</label><br><span>{{NOME_PACIENTE}}</span></div>
+      <div><label>Idade:</label><br><span>{{IDADE}}</span></div>
+      <div><label>Data:</label><br><span>{{DATA_EMISSAO}}</span></div>
+    </div>
+  </div>
+
+  <div class="medicamentos">
+    <!-- Medicamento 1 — gerado pelo Claude -->
+    <div class="medicamento">
+      <div class="med-nome"><span class="med-numero">1</span> {{MED1_NOME}} <span class="med-forma">{{MED1_FORMA}}</span></div>
+      <div class="med-posologia"><span class="label">Posologia:</span> {{MED1_POSOLOGIA}}</div>
+      <div class="med-quantidade">Quantidade: {{MED1_QUANTIDADE}}</div>
+      <div class="med-observacao">{{MED1_OBSERVACAO}}</div>
+    </div>
+
+    <!-- Medicamento 2 — gerado pelo Claude (se houver) -->
+    <div class="medicamento">
+      <div class="med-nome"><span class="med-numero">2</span> {{MED2_NOME}} <span class="med-forma">{{MED2_FORMA}}</span></div>
+      <div class="med-posologia"><span class="label">Posologia:</span> {{MED2_POSOLOGIA}}</div>
+      <div class="med-quantidade">Quantidade: {{MED2_QUANTIDADE}}</div>
+      <div class="med-observacao">{{MED2_OBSERVACAO}}</div>
+    </div>
+  </div>
+
+  <div class="instrucoes">
+    <div class="instrucoes-titulo">⚠️ INSTRUÇÕES IMPORTANTES</div>
+    <p>• Não interrompa o tratamento antes do prazo, mesmo que os sintomas melhorem.</p>
+    <p>• Em caso de reação alérgica (coceira, inchaço, dificuldade para respirar), procure pronto-socorro imediatamente.</p>
+    <p>• {{INSTRUCOES_ESPECIFICAS}}</p>
+  </div>
+
+  <div class="validade">⏳ Prescrição válida por 30 dias a partir da data de emissão</div>
+
+  <div class="assinatura">
+    <div class="qr-area">
+      <div class="qr-placeholder">QR<br>Code</div>
+      <div style="font-size:7pt;color:#aaa">Doc. {{NUMERO_PRESCRICAO}}</div>
+    </div>
+    <div class="dentista">Dra. {{NOME_DENTISTA}}</div>
+    <div class="cro">CRO-{{UF_CRO}} {{CRO_DENTISTA}}</div>
+    <div class="data-local">{{CIDADE_CONSULTORIO}}, {{DATA_EMISSAO}}</div>
+  </div>
+
+  <div class="footer">
+    Prescrição Nº {{NUMERO_PRESCRICAO}} — Gerada em {{DATA_EMISSAO}} — {{NOME_FANTASIA}}
+  </div>
+</div>
+</body>
+</html>

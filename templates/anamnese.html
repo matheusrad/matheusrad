@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Anamnese Odontológica</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Arial', sans-serif; font-size: 11pt; color: #1a1a1a; background: #fff; }
+  .page { max-width: 210mm; margin: 0 auto; padding: 15mm 20mm; }
+
+  .header { display: flex; align-items: center; border-bottom: 3px solid #2563eb; padding-bottom: 12px; margin-bottom: 20px; }
+  .header-logo { width: 70px; height: 70px; background: #2563eb; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 16px; flex-shrink: 0; }
+  .header-logo svg { width: 40px; height: 40px; fill: white; }
+  .header-info h1 { font-size: 18pt; color: #2563eb; font-weight: bold; }
+  .header-info p { font-size: 9pt; color: #555; margin-top: 2px; }
+  .doc-title { text-align: right; margin-left: auto; }
+  .doc-title h2 { font-size: 14pt; color: #1e3a5f; font-weight: bold; }
+  .doc-title p { font-size: 9pt; color: #666; }
+
+  .numero-doc { background: #f0f4ff; border: 1px solid #2563eb; border-radius: 6px; padding: 8px 14px; margin-bottom: 20px; display: flex; justify-content: space-between; font-size: 9pt; color: #444; }
+  .numero-doc strong { color: #2563eb; }
+
+  .secao { margin-bottom: 18px; }
+  .secao-titulo { background: #2563eb; color: white; padding: 6px 12px; font-size: 10pt; font-weight: bold; border-radius: 4px; margin-bottom: 10px; letter-spacing: 0.5px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+  .campo { margin-bottom: 6px; }
+  .campo label { font-size: 8pt; color: #666; font-weight: bold; display: block; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .campo .valor { border-bottom: 1px solid #ccc; padding: 3px 0; font-size: 10pt; min-height: 20px; color: #1a1a1a; }
+  .campo.destaque .valor { color: #dc2626; font-weight: bold; }
+
+  .sim-nao { display: flex; gap: 16px; align-items: center; }
+  .sim-nao .opcao { display: flex; align-items: center; gap: 4px; font-size: 10pt; }
+  .check { width: 14px; height: 14px; border: 1.5px solid #555; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; }
+  .check.marcado { background: #2563eb; border-color: #2563eb; color: white; font-size: 9pt; }
+
+  .obs-box { border: 1px solid #ddd; border-radius: 6px; padding: 10px; min-height: 60px; font-size: 10pt; color: #333; background: #fafafa; }
+
+  .alerta { background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; font-size: 9pt; }
+  .alerta strong { color: #856404; }
+
+  .assinatura { margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+  .assinatura-bloco { text-align: center; }
+  .assinatura-linha { border-top: 1px solid #333; margin-bottom: 4px; padding-top: 4px; }
+  .assinatura-label { font-size: 8pt; color: #555; }
+
+  .footer { margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 10px; font-size: 8pt; color: #888; text-align: center; }
+
+  @media print {
+    body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    .page { padding: 10mm 15mm; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="header-logo">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2C9.5 2 7 4 7 6.5c0 1.5.5 3 1.5 4l-1 8c-.2 1.5.5 2.5 1.5 3 .8.4 1.8.1 2.5-.5.5-.4.8-.4 1 0 .7.6 1.7.9 2.5.5 1-.5 1.7-1.5 1.5-3l-1-8C16.5 9.5 17 8 17 6.5 17 4 14.5 2 12 2z"/>
+      </svg>
+    </div>
+    <div class="header-info">
+      <h1>{{NOME_FANTASIA}}</h1>
+      <p>CRO: {{CRO_DENTISTA}} &bull; {{TELEFONE_CONSULTORIO}}</p>
+      <p>{{ENDERECO_CONSULTORIO}}</p>
+    </div>
+    <div class="doc-title">
+      <h2>ANAMNESE ODONTOLÓGICA</h2>
+      <p>Prontuário do Paciente</p>
+    </div>
+  </div>
+
+  <div class="numero-doc">
+    <span>Número: <strong>{{NUMERO_ANAMNESE}}</strong></span>
+    <span>Data: <strong>{{DATA_PREENCHIMENTO}}</strong></span>
+    <span>Dentista: <strong>{{NOME_DENTISTA}}</strong></span>
+  </div>
+
+  <!-- DADOS PESSOAIS -->
+  <div class="secao">
+    <div class="secao-titulo">📋 DADOS PESSOAIS</div>
+    <div class="grid-2">
+      <div class="campo"><label>Nome Completo</label><div class="valor">{{NOME_PACIENTE}}</div></div>
+      <div class="campo"><label>Data de Nascimento</label><div class="valor">{{DATA_NASCIMENTO}} &nbsp;&nbsp; Idade: {{IDADE}} anos</div></div>
+      <div class="campo"><label>CPF</label><div class="valor">{{CPF}}</div></div>
+      <div class="campo"><label>RG</label><div class="valor">{{RG}}</div></div>
+      <div class="campo"><label>Telefone / WhatsApp</label><div class="valor">{{TELEFONE}}</div></div>
+      <div class="campo"><label>E-mail</label><div class="valor">{{EMAIL}}</div></div>
+      <div class="campo"><label>Endereço</label><div class="valor">{{ENDERECO}}</div></div>
+      <div class="campo"><label>Profissão</label><div class="valor">{{PROFISSAO}}</div></div>
+    </div>
+    <div class="campo" style="margin-top:6px"><label>Responsável (para menores de 18 anos)</label><div class="valor">{{RESPONSAVEL}}</div></div>
+  </div>
+
+  <!-- QUEIXA PRINCIPAL -->
+  <div class="secao">
+    <div class="secao-titulo">🦷 MOTIVO DA CONSULTA</div>
+    <div class="campo"><label>Qual o motivo da sua consulta hoje?</label><div class="valor" style="min-height:40px">{{MOTIVO_CONSULTA}}</div></div>
+    <div class="grid-2">
+      <div class="campo destaque"><label>Está sentindo dor atualmente?</label><div class="valor">{{TEM_DOR}}</div></div>
+      <div class="campo"><label>Se sim, onde é a dor? (intensidade 0-10)</label><div class="valor">{{LOCAL_DOR}}</div></div>
+      <div class="campo"><label>Há quanto tempo está com esse problema?</label><div class="valor">{{TEMPO_PROBLEMA}}</div></div>
+      <div class="campo"><label>Última consulta ao dentista</label><div class="valor">{{ULTIMA_CONSULTA}}</div></div>
+    </div>
+  </div>
+
+  <!-- SAÚDE GERAL -->
+  <div class="secao">
+    <div class="secao-titulo">🏥 HISTÓRICO DE SAÚDE GERAL</div>
+    <div class="grid-2">
+      <div class="campo destaque"><label>Faz uso de algum medicamento?</label><div class="valor">{{USA_MEDICAMENTO}}</div></div>
+      <div class="campo"><label>Qual(is) medicamento(s)?</label><div class="valor">{{QUAL_MEDICAMENTO}}</div></div>
+      <div class="campo destaque"><label>Tem alergia a medicamento ou material?</label><div class="valor">{{TEM_ALERGIA}}</div></div>
+      <div class="campo"><label>Especificar alergias</label><div class="valor">{{QUAL_ALERGIA}}</div></div>
+    </div>
+    <div class="grid-3" style="margin-top:8px">
+      <div class="campo"><label>Hipertensão (pressão alta)</label><div class="valor">{{HIPERTENSAO}}</div></div>
+      <div class="campo"><label>Diabetes</label><div class="valor">{{DIABETES}}</div></div>
+      <div class="campo"><label>Problema cardíaco</label><div class="valor">{{PROBLEMA_CARDIACO}}</div></div>
+      <div class="campo"><label>Doença renal</label><div class="valor">{{DOENCA_RENAL}}</div></div>
+      <div class="campo"><label>Doença hepática (fígado)</label><div class="valor">{{DOENCA_HEPATICA}}</div></div>
+      <div class="campo"><label>Distúrbio de coagulação</label><div class="valor">{{DISTURBIO_COAGULACAO}}</div></div>
+      <div class="campo"><label>Osteoporose / usa bisfosfonato</label><div class="valor">{{OSTEOPOROSE}}</div></div>
+      <div class="campo"><label>HIV / imunossuprimido</label><div class="valor">{{HIV}}</div></div>
+      <div class="campo"><label>Gestante / período</label><div class="valor">{{GESTANTE}}</div></div>
+    </div>
+    <div class="campo" style="margin-top:6px"><label>Outras doenças sistêmicas</label><div class="valor">{{OUTRAS_DOENCAS}}</div></div>
+  </div>
+
+  <!-- HÁBITOS -->
+  <div class="secao">
+    <div class="secao-titulo">🚬 HÁBITOS E ESTILO DE VIDA</div>
+    <div class="grid-3">
+      <div class="campo"><label>Fuma / tabagismo</label><div class="valor">{{FUMA}}</div></div>
+      <div class="campo"><label>Bebida alcoólica</label><div class="valor">{{ALCOOL}}</div></div>
+      <div class="campo"><label>Bruxismo (range os dentes)</label><div class="valor">{{BRUXISMO}}</div></div>
+    </div>
+  </div>
+
+  <!-- HISTÓRICO ODONTOLÓGICO -->
+  <div class="secao">
+    <div class="secao-titulo">🔬 HISTÓRICO ODONTOLÓGICO</div>
+    <div class="grid-2">
+      <div class="campo"><label>Já fez cirurgia odontológica?</label><div class="valor">{{JA_FEZ_CIRURGIA}}</div></div>
+      <div class="campo"><label>Sangramento após procedimento?</label><div class="valor">{{SANGRAMENTO_POS}}</div></div>
+      <div class="campo"><label>Medo/ansiedade de tratamento?</label><div class="valor">{{MEDO_TRATAMENTO}}</div></div>
+      <div class="campo"><label>Usa prótese dentária?</label><div class="valor">{{USA_PROTESE}}</div></div>
+    </div>
+  </div>
+
+  <!-- OBSERVAÇÕES -->
+  <div class="secao">
+    <div class="secao-titulo">📝 OBSERVAÇÕES ADICIONAIS</div>
+    <div class="obs-box">{{OBSERVACOES}}</div>
+  </div>
+
+  <!-- ASSINATURA -->
+  <div class="assinatura">
+    <div class="assinatura-bloco">
+      <div style="height:50px"></div>
+      <div class="assinatura-linha">{{NOME_PACIENTE}}</div>
+      <div class="assinatura-label">Assinatura do Paciente / Responsável</div>
+    </div>
+    <div class="assinatura-bloco">
+      <div style="height:50px"></div>
+      <div class="assinatura-linha">{{NOME_DENTISTA}} — CRO {{CRO_DENTISTA}}</div>
+      <div class="assinatura-label">Cirurgiã-Dentista Responsável</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Documento gerado automaticamente em {{DATA_PREENCHIMENTO}} — SecretárIA Dental &bull; {{NOME_FANTASIA}} &bull; {{TELEFONE_CONSULTORIO}}
+  </div>
+</div>
+</body>
+</html>

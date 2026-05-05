@@ -1,0 +1,20 @@
+# Variáveis de ambiente com dados sensíveis
+.env
+.env.local
+.env.production
+
+# Backups e dados
+*.backup
+*.dump
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Nota Fiscal de Serviço</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Arial', sans-serif; font-size: 10pt; color: #1a1a1a; background: #fff; }
+  .page { max-width: 210mm; margin: 0 auto; padding: 10mm 15mm; }
+
+  .topo { border: 2px solid #1a1a1a; margin-bottom: 0; }
+  .topo-header { background: #1a1a1a; color: white; text-align: center; padding: 8px; }
+  .topo-header h1 { font-size: 11pt; font-weight: bold; letter-spacing: 2px; }
+  .topo-header h2 { font-size: 9pt; letter-spacing: 1px; }
+
+  .topo-info { display: grid; grid-template-columns: 2fr 1fr; border-top: 2px solid #1a1a1a; }
+  .prestador-info { padding: 10px; border-right: 2px solid #1a1a1a; }
+  .prestador-info h3 { font-size: 12pt; font-weight: bold; color: #1a1a1a; }
+  .prestador-info p { font-size: 8.5pt; color: #333; margin-top: 2px; }
+  .nf-numero { padding: 10px; text-align: center; }
+  .nf-numero .label { font-size: 8pt; color: #555; }
+  .nf-numero .numero { font-size: 22pt; font-weight: bold; color: #1a1a1a; }
+  .nf-numero .serie { font-size: 9pt; color: #555; }
+  .nf-numero .data { margin-top: 6px; font-size: 9pt; }
+
+  .secao { border: 1px solid #ccc; margin-bottom: 0; border-top: none; }
+  .secao-header { background: #f0f0f0; border-bottom: 1px solid #ccc; padding: 4px 10px; font-size: 8pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+  .secao-body { padding: 8px 10px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
+
+  .campo { }
+  .campo label { font-size: 7.5pt; color: #666; font-weight: bold; display: block; text-transform: uppercase; }
+  .campo span { font-size: 9.5pt; display: block; border-bottom: 1px solid #e0e0e0; padding-bottom: 2px; }
+
+  table.servicos { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  table.servicos th { background: #f0f0f0; padding: 5px 8px; text-align: left; font-size: 7.5pt; font-weight: bold; text-transform: uppercase; border: 1px solid #ccc; }
+  table.servicos td { padding: 6px 8px; border: 1px solid #e0e0e0; }
+  table.servicos tr:nth-child(even) td { background: #fafafa; }
+
+  .valores-total { border: 2px solid #1a1a1a; margin-top: -1px; }
+  .valores-total .linha { display: flex; justify-content: space-between; padding: 4px 10px; border-bottom: 1px solid #e0e0e0; font-size: 9pt; }
+  .valores-total .linha:last-child { border-bottom: none; background: #1a1a1a; color: white; font-weight: bold; font-size: 10.5pt; padding: 6px 10px; }
+  .valores-total .linha .label { color: inherit; }
+  .valores-total .linha .valor { font-weight: bold; }
+
+  .rodape-danfe { background: #f9f9f9; border: 1px solid #ccc; border-top: none; padding: 8px 10px; font-size: 8pt; }
+  .chave-acesso { font-family: monospace; font-size: 8pt; letter-spacing: 1px; word-break: break-all; color: #1a1a1a; margin-bottom: 4px; }
+  .chave-label { font-size: 7.5pt; font-weight: bold; text-transform: uppercase; color: #555; margin-bottom: 2px; }
+
+  .aviso { background: #fffbeb; border: 1px solid #fbbf24; border-radius: 4px; padding: 6px 10px; margin-top: 8px; font-size: 8pt; color: #92400e; }
+
+  .assinatura-nf { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+  .assinatura-bloco { text-align: center; }
+  .assinatura-linha { border-top: 1px solid #333; padding-top: 4px; font-size: 9pt; }
+
+  @media print {
+    body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="topo">
+    <div class="topo-header">
+      <h1>PREFEITURA MUNICIPAL DE {{MUNICIPIO}}</h1>
+      <h2>NOTA FISCAL DE SERVIÇOS ELETRÔNICA — NFS-e</h2>
+    </div>
+    <div class="topo-info">
+      <div class="prestador-info">
+        <h3>{{RAZAO_SOCIAL}}</h3>
+        <p>Nome Fantasia: {{NOME_FANTASIA}}</p>
+        <p>CNPJ: {{CNPJ}} &bull; Inscrição Municipal: {{INSCRICAO_MUNICIPAL}}</p>
+        <p>{{ENDERECO_PRESTADOR}}</p>
+        <p>Tel: {{TELEFONE_CONSULTORIO}} &bull; {{EMAIL_CONSULTORIO}}</p>
+        <p style="margin-top:4px">Regime Tributário: <strong>{{REGIME_TRIBUTARIO}}</strong></p>
+      </div>
+      <div class="nf-numero">
+        <div class="label">Número da NFS-e</div>
+        <div class="numero">{{NUMERO_NF}}</div>
+        <div class="serie">Série: {{SERIE_NF}}</div>
+        <div class="data">
+          <strong>Emissão:</strong> {{DATA_EMISSAO}}<br>
+          <strong>Competência:</strong> {{MES_COMPETENCIA}}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="secao">
+    <div class="secao-header">📋 Dados do Tomador (Paciente)</div>
+    <div class="secao-body">
+      <div class="grid-2" style="margin-bottom:8px">
+        <div class="campo"><label>Nome / Razão Social</label><span>{{TOMADOR_NOME}}</span></div>
+        <div class="campo"><label>CPF / CNPJ</label><span>{{TOMADOR_CPF}}</span></div>
+      </div>
+      <div class="grid-3">
+        <div class="campo"><label>Endereço</label><span>{{TOMADOR_ENDERECO}}</span></div>
+        <div class="campo"><label>Município</label><span>{{TOMADOR_MUNICIPIO}}</span></div>
+        <div class="campo"><label>CEP</label><span>{{TOMADOR_CEP}}</span></div>
+        <div class="campo"><label>Telefone</label><span>{{TOMADOR_TELEFONE}}</span></div>
+        <div class="campo"><label>E-mail</label><span>{{TOMADOR_EMAIL}}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="secao">
+    <div class="secao-header">⚕️ Descrição do Serviço Prestado</div>
+    <div class="secao-body">
+      <table class="servicos">
+        <thead>
+          <tr>
+            <th style="width:5%">#</th>
+            <th style="width:10%">Cód. Serviço (LC 116)</th>
+            <th>Descrição do Serviço</th>
+            <th style="width:15%">Qtd.</th>
+            <th style="width:15%">Valor Unit.</th>
+            <th style="width:15%">Valor Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>{{CODIGO_SERVICO}}</td>
+            <td>{{DESCRICAO_SERVICO}}</td>
+            <td>1</td>
+            <td>R$ {{VALOR_UNITARIO}}</td>
+            <td>R$ {{VALOR_SERVICOS}}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="secao">
+    <div class="secao-header">💰 Valores e Tributos</div>
+    <div class="secao-body">
+      <div class="grid-4">
+        <div class="campo"><label>Valor dos Serviços</label><span>R$ {{VALOR_SERVICOS}}</span></div>
+        <div class="campo"><label>Deduções</label><span>R$ {{DEDUCOES}}</span></div>
+        <div class="campo"><label>Base de Cálculo ISS</label><span>R$ {{BASE_CALCULO_ISS}}</span></div>
+        <div class="campo"><label>Alíquota ISS</label><span>{{ALIQUOTA_ISS}}%</span></div>
+        <div class="campo"><label>Valor ISS</label><span>R$ {{VALOR_ISS}}</span></div>
+        <div class="campo"><label>ISS Retido?</label><span>{{ISS_RETIDO}}</span></div>
+        <div class="campo"><label>PIS</label><span>R$ {{VALOR_PIS}}</span></div>
+        <div class="campo"><label>COFINS</label><span>R$ {{VALOR_COFINS}}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="valores-total">
+    <div class="linha"><span class="label">Valor dos Serviços</span><span class="valor">R$ {{VALOR_SERVICOS}}</span></div>
+    <div class="linha"><span class="label">(-) Deduções</span><span class="valor">R$ {{DEDUCOES}}</span></div>
+    <div class="linha"><span class="label">(-) Descontos</span><span class="valor">R$ {{DESCONTOS}}</span></div>
+    <div class="linha"><span class="label">(-) Retenções</span><span class="valor">R$ {{RETENCOES}}</span></div>
+    <div class="linha"><span class="label">✅ VALOR LÍQUIDO DA NOTA FISCAL</span><span class="valor">R$ {{VALOR_LIQUIDO}}</span></div>
+  </div>
+
+  <div class="rodape-danfe">
+    <div class="chave-label">Chave de Acesso da NFS-e</div>
+    <div class="chave-acesso">{{CHAVE_ACESSO_NFS}}</div>
+    <div style="margin-top:6px;font-size:7.5pt;color:#555">
+      Número do RPS: {{NUMERO_RPS}} &bull; Série: {{SERIE_RPS}} &bull;
+      Código de Verificação: {{CODIGO_VERIFICACAO}}
+    </div>
+  </div>
+
+  <div class="aviso">
+    ⚠️ <strong>DANFS-e — Documento Auxiliar da Nota Fiscal de Serviços Eletrônica.</strong>
+    Este documento não tem valor fiscal. Confira a autenticidade no portal da Prefeitura de {{MUNICIPIO}}.
+  </div>
+
+  <div class="assinatura-nf">
+    <div class="assinatura-bloco">
+      <div style="height:40px"></div>
+      <div class="assinatura-linha">
+        <strong>{{RAZAO_SOCIAL}}</strong><br>
+        CNPJ: {{CNPJ}}
+      </div>
+    </div>
+    <div class="assinatura-bloco">
+      <div style="height:40px"></div>
+      <div class="assinatura-linha">
+        {{MUNICIPIO}}, {{DATA_EMISSAO}}<br>
+        Assinatura Digital / Selo Fiscal
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

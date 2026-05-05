@@ -1,0 +1,133 @@
+version: "3.8"
+
+# ============================================================
+# SecretárIA Dental — Stack Completa
+# Suba tudo com: docker-compose up -d
+# ============================================================
+
+services:
+
+  # ── n8n: Orquestrador de automações ─────────────────────
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: secretaria_n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      # URL pública do n8n (substitua pelo seu domínio ou IP)
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      # Autenticação básica do n8n
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=SUA_SENHA_AQUI
+      # Fuso horário
+      - GENERIC_TIMEZONE=America/Sao_Paulo
+      - TZ=America/Sao_Paulo
+      # Variáveis de ambiente para os workflows
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - EVOLUTION_API_URL=http://evolution:8080
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+      - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE:-consultorio}
+      - GOOGLE_CALENDAR_ID=${GOOGLE_CALENDAR_ID}
+      - GOOGLE_SHEETS_PACIENTES_ID=${GOOGLE_SHEETS_PACIENTES_ID}
+      - GOOGLE_DRIVE_ANAMNESES_FOLDER_ID=${GOOGLE_DRIVE_ANAMNESES_FOLDER_ID}
+      - GOOGLE_DRIVE_DOCUMENTOS_FOLDER_ID=${GOOGLE_DRIVE_DOCUMENTOS_FOLDER_ID}
+      - GOOGLE_FORMS_ANAMNESE_URL=${GOOGLE_FORMS_ANAMNESE_URL}
+      - INSTAGRAM_USER_ID=${INSTAGRAM_USER_ID}
+      - META_ACCESS_TOKEN=${META_ACCESS_TOKEN}
+      - CNPJ_CONSULTORIO=${CNPJ_CONSULTORIO}
+      - INSCRICAO_MUNICIPAL=${INSCRICAO_MUNICIPAL}
+      - RAZAO_SOCIAL=${RAZAO_SOCIAL}
+      - NOME_FANTASIA=${NOME_FANTASIA}
+      - EMAIL_CONSULTORIO=${EMAIL_CONSULTORIO}
+      - TELEFONE_CONSULTORIO=${TELEFONE_CONSULTORIO}
+      - GOTENBERG_URL=http://gotenberg:3000
+      # Prompts Claude (carregados do arquivo)
+      - PROMPT_SECRETARIA=${PROMPT_SECRETARIA}
+      - PROMPT_ANAMNESE=${PROMPT_ANAMNESE}
+      - PROMPT_PRESCRICAO=${PROMPT_PRESCRICAO}
+      - PROMPT_LAUDO=${PROMPT_LAUDO}
+      - PROMPT_INSTAGRAM=${PROMPT_INSTAGRAM}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - gotenberg
+    networks:
+      - secretaria_net
+
+  # ── Evolution API: Gateway WhatsApp ─────────────────────
+  evolution:
+    image: atendai/evolution-api:latest
+    container_name: secretaria_whatsapp
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_URL=http://localhost:8080
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY:-CHANGE_THIS_KEY}
+      - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
+      - DEL_INSTANCE=false
+      - QRCODE_LIMIT=30
+      - LANGUAGE=pt-BR
+      - CONFIG_SESSION_PHONE_CLIENT=SecretariaIA
+      - CONFIG_SESSION_PHONE_NAME=Chrome
+      - STORE_MESSAGES=true
+      - STORE_MESSAGE_UP=true
+      - STORE_CONTACTS=true
+      - STORE_CHATS=true
+      - WEBHOOK_GLOBAL_URL=http://n8n:5678/webhook/whatsapp-webhook
+      - WEBHOOK_GLOBAL_ENABLED=true
+      - WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS=false
+      - EVENTS_APPLICATION_STARTUP=false
+      - EVENTS_QRCODE_UPDATED=false
+      - EVENTS_MESSAGES_SET=false
+      - EVENTS_MESSAGES_UPSERT=true
+      - EVENTS_MESSAGES_UPDATE=false
+      - EVENTS_CONTACTS_SET=false
+      - EVENTS_CONTACTS_UPSERT=false
+      - EVENTS_PRESENCE_UPDATE=false
+      - EVENTS_CHATS_SET=false
+      - EVENTS_CHATS_UPSERT=false
+    volumes:
+      - evolution_data:/evolution/instances
+      - evolution_store:/evolution/store
+    networks:
+      - secretaria_net
+
+  # ── Gotenberg: Conversor HTML → PDF ─────────────────────
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: secretaria_pdf
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    command:
+      - "gotenberg"
+      - "--chromium-disable-javascript=false"
+      - "--chromium-allow-list=file:///tmp/.*"
+    networks:
+      - secretaria_net
+
+  # ── Redis: Cache para n8n (performance) ─────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: secretaria_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - secretaria_net
+
+volumes:
+  n8n_data:
+  evolution_data:
+  evolution_store:
+  redis_data:
+
+networks:
+  secretaria_net:
+    driver: bridge

@@ -1,0 +1,210 @@
+{
+  "name": "05 - Nota Fiscal de Serviço Automática (NFS-e)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "emitir-nf",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-emitir-nf",
+      "name": "Webhook — Emitir Nota Fiscal",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Acionado após conclusão de consulta. Pode ser via formulário simples no celular da dentista ou disparado automaticamente pelo sistema de agendamento."
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $input.first().json;\n\n// Tabela de serviços odontológicos (CNAE/LC116) — adapte conforme seu município\nconst servicosCodes = {\n  'consulta': { descricao: 'Consulta odontológica', codigo_servico: '0401', aliquota_iss: 2.0 },\n  'limpeza': { descricao: 'Limpeza e profilaxia dental', codigo_servico: '0401', aliquota_iss: 2.0 },\n  'restauracao': { descricao: 'Restauração dentária', codigo_servico: '0401', aliquota_iss: 2.0 },\n  'extracao': { descricao: 'Extração dentária', codigo_servico: '0401', aliquota_iss: 2.0 },\n  'clareamento': { descricao: 'Clareamento dental', codigo_servico: '0401', aliquota_iss: 2.0 },\n  'ortodontia': { descricao: 'Tratamento ortodôntico (mensalidade)', codigo_servico: '0401', aliquota_iss: 2.0 },\n  'implante': { descricao: 'Implante dentário', codigo_servico: '0401', aliquota_iss: 2.0 },\n  'canal': { descricao: 'Tratamento de canal (endodontia)', codigo_servico: '0401', aliquota_iss: 2.0 },\n  'protese': { descricao: 'Prótese dentária', codigo_servico: '0401', aliquota_iss: 2.0 },\n  'radiografia': { descricao: 'Radiografia odontológica', codigo_servico: '0401', aliquota_iss: 2.0 }\n};\n\nconst tipoServico = (dados.tipo_servico || 'consulta').toLowerCase();\nconst servico = servicosCodes[tipoServico] || servicosCodes['consulta'];\nconst valorTotal = parseFloat(dados.valor || 0);\nconst valorISS = (valorTotal * servico.aliquota_iss / 100).toFixed(2);\n\nreturn [{\n  json: {\n    // Dados do prestador (seu consultório)\n    prestador: {\n      cnpj: $vars.CNPJ_CONSULTORIO,\n      inscricao_municipal: $vars.INSCRICAO_MUNICIPAL,\n      razao_social: $vars.RAZAO_SOCIAL,\n      nome_fantasia: $vars.NOME_FANTASIA || '',\n      email: $vars.EMAIL_CONSULTORIO,\n      telefone: $vars.TELEFONE_CONSULTORIO,\n      logradouro: $vars.ENDERECO_LOGRADOURO,\n      numero: $vars.ENDERECO_NUMERO,\n      bairro: $vars.ENDERECO_BAIRRO,\n      municipio: $vars.ENDERECO_MUNICIPIO,\n      uf: $vars.ENDERECO_UF,\n      cep: $vars.ENDERECO_CEP,\n      codigo_municipio: $vars.CODIGO_MUNICIPIO_IBGE\n    },\n    // Dados do tomador (paciente)\n    tomador: {\n      cpf: dados.cpf_paciente || '',\n      nome: dados.nome_paciente || dados.nomePaciente || '',\n      email: dados.email_paciente || '',\n      telefone: dados.telefone_paciente || '',\n      logradouro: dados.endereco_logradouro || '',\n      numero: dados.endereco_numero || 'S/N',\n      bairro: dados.endereco_bairro || '',\n      municipio: dados.endereco_municipio || '',\n      uf: dados.endereco_uf || '',\n      cep: dados.endereco_cep || ''\n    },\n    // Dados do serviço\n    servico: {\n      descricao: servico.descricao + (dados.descricao_adicional ? ' - ' + dados.descricao_adicional : ''),\n      codigo_servico: servico.codigo_servico,\n      aliquota_iss: servico.aliquota_iss,\n      valor_servicos: valorTotal.toFixed(2),\n      valor_iss: valorISS,\n      valor_liquido: valorTotal.toFixed(2),\n      deducoes: '0.00',\n      optante_simples: $vars.OPTANTE_SIMPLES_NACIONAL || 'true'\n    },\n    // Metadados\n    numero_rps: 'RPS-' + Date.now(),\n    data_emissao: new Date().toISOString(),\n    telefone_paciente: dados.telefone_paciente || '',\n    email_paciente: dados.email_paciente || ''\n  }\n}];"
+      },
+      "id": "prepara-dados-nf",
+      "name": "Prepara Dados da Nota Fiscal",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.focusnfe.com.br/v2/nfse",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"data_emissao\": \"{{ $json.data_emissao }}\",\n  \"prestador\": {\n    \"cnpj\": \"{{ $json.prestador.cnpj }}\",\n    \"inscricao_municipal\": \"{{ $json.prestador.inscricao_municipal }}\",\n    \"codigo_municipio\": \"{{ $json.prestador.codigo_municipio }}\"\n  },\n  \"tomador\": {\n    \"cpf\": \"{{ $json.tomador.cpf }}\",\n    \"razao_social\": \"{{ $json.tomador.nome }}\",\n    \"email\": \"{{ $json.tomador.email }}\",\n    \"telefone\": \"{{ $json.tomador.telefone }}\",\n    \"endereco\": {\n      \"logradouro\": \"{{ $json.tomador.logradouro }}\",\n      \"numero\": \"{{ $json.tomador.numero }}\",\n      \"bairro\": \"{{ $json.tomador.bairro }}\",\n      \"municipio\": \"{{ $json.tomador.municipio }}\",\n      \"uf\": \"{{ $json.tomador.uf }}\",\n      \"cep\": \"{{ $json.tomador.cep }}\"\n    }\n  },\n  \"servico\": {\n    \"aliquota\": {{ $json.servico.aliquota_iss }},\n    \"base_calculo\": {{ $json.servico.valor_servicos }},\n    \"discriminacao\": \"{{ $json.servico.descricao }}\",\n    \"iss_retido\": false,\n    \"item_lista_servico\": \"{{ $json.servico.codigo_servico }}\",\n    \"valor_iss\": {{ $json.servico.valor_iss }},\n    \"valor_liquido\": {{ $json.servico.valor_liquido }},\n    \"valor_servicos\": {{ $json.servico.valor_servicos }}\n  },\n  \"numero_rps\": \"{{ $json.numero_rps }}\",\n  \"serie_rps\": \"1\"\n}",
+        "options": {}
+      },
+      "id": "emite-nf-focusnfe",
+      "name": "Emite NFS-e (Focus NF-e API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300],
+      "notes": "Focus NF-e: grátis até 50 NF/mês. Configure as credenciais em Settings → Credentials → HTTP Basic Auth com token da Focus NF-e."
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "aguarda-processamento",
+      "name": "Aguarda 5s (Processamento NF)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.focusnfe.com.br/v2/nfse/{{ $('Emite NFS-e (Focus NF-e API)').item.json.ref }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {}
+      },
+      "id": "busca-nf-emitida",
+      "name": "Busca NF Emitida",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const nfData = $input.first().json;\nconst dadosNF = $('Prepara Dados da Nota Fiscal').item.json;\n\nconst status = nfData.status || 'processando';\nconst numeroNF = nfData.numero || '';\nconst linkPDF = nfData.caminho_danfse || nfData.url_danfse || '';\nconst linkXML = nfData.caminho_xml_nota_fiscal || '';\n\nreturn [{\n  json: {\n    status,\n    numeroNF,\n    linkPDF,\n    linkXML,\n    ref: nfData.ref || '',\n    tomadorNome: dadosNF.tomador.nome,\n    tomadorTelefone: dadosNF.telefone_paciente,\n    tomadorEmail: dadosNF.email_paciente,\n    valorServico: dadosNF.servico.valor_servicos,\n    descricaoServico: dadosNF.servico.descricao,\n    dataEmissao: new Date().toLocaleDateString('pt-BR')\n  }\n}];"
+      },
+      "id": "processa-nf-emitida",
+      "name": "Processa Dados da NF Emitida",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.EVOLUTION_API_URL }}/message/sendText/{{ $vars.EVOLUTION_INSTANCE }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.EVOLUTION_API_KEY }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.tomadorTelefone }}\",\n  \"text\": \"Olá, {{ $json.tomadorNome }}! 😊\\n\\nSua Nota Fiscal de Serviço foi emitida com sucesso!\\n\\n🧾 *NFS-e Nº {{ $json.numeroNF }}*\\n📅 Data: {{ $json.dataEmissao }}\\n💰 Valor: R$ {{ $json.valorServico }}\\n🦷 Serviço: {{ $json.descricaoServico }}\\n\\n📄 PDF: {{ $json.linkPDF }}\\n\\nObrigada pela confiança! 🙏\"\n}",
+        "options": {}
+      },
+      "id": "envia-nf-whatsapp",
+      "name": "Envia NF por WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1560, 220]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $vars.EMAIL_CONSULTORIO }}",
+        "toEmail": "={{ $json.tomadorEmail }}",
+        "subject": "=Nota Fiscal de Serviço Nº {{ $json.numeroNF }} — Consultório Dra. [NOME]",
+        "emailFormat": "html",
+        "html": "=<h2>Nota Fiscal de Serviço Eletrônica</h2>\n<p>Olá, <strong>{{ $json.tomadorNome }}</strong>!</p>\n<p>Segue sua Nota Fiscal de Serviço:</p>\n<ul>\n  <li><strong>Número:</strong> {{ $json.numeroNF }}</li>\n  <li><strong>Data de emissão:</strong> {{ $json.dataEmissao }}</li>\n  <li><strong>Serviço:</strong> {{ $json.descricaoServico }}</li>\n  <li><strong>Valor:</strong> R$ {{ $json.valorServico }}</li>\n</ul>\n<p><a href=\"{{ $json.linkPDF }}\">📄 Baixar PDF da NFS-e</a></p>\n<br>\n<p>Obrigada pela confiança!<br>Consultório Dra. [NOME]</p>",
+        "options": {}
+      },
+      "id": "envia-nf-email",
+      "name": "Envia NF por Email (Gmail)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [1560, 380]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $vars.GOOGLE_SHEETS_PACIENTES_ID }}",
+          "mode": "id"
+        },
+        "sheetName": "Notas Fiscais",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "numero_nf": "={{ $json.numeroNF }}",
+            "ref_focusnfe": "={{ $json.ref }}",
+            "paciente": "={{ $json.tomadorNome }}",
+            "servico": "={{ $json.descricaoServico }}",
+            "valor": "={{ $json.valorServico }}",
+            "data_emissao": "={{ $json.dataEmissao }}",
+            "status": "Emitida",
+            "link_pdf": "={{ $json.linkPDF }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "registra-nf-planilha",
+      "name": "Registra NF na Planilha",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"ok\",\n  \"numero_nf\": \"{{ $('Processa Dados da NF Emitida').item.json.numeroNF }}\",\n  \"link_pdf\": \"{{ $('Processa Dados da NF Emitida').item.json.linkPDF }}\"\n}"
+      },
+      "id": "responde-webhook",
+      "name": "Responde com Dados da NF",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2000, 300]
+    }
+  ],
+  "connections": {
+    "Webhook — Emitir Nota Fiscal": {
+      "main": [
+        [{ "node": "Prepara Dados da Nota Fiscal", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepara Dados da Nota Fiscal": {
+      "main": [
+        [{ "node": "Emite NFS-e (Focus NF-e API)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Emite NFS-e (Focus NF-e API)": {
+      "main": [
+        [{ "node": "Aguarda 5s (Processamento NF)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Aguarda 5s (Processamento NF)": {
+      "main": [
+        [{ "node": "Busca NF Emitida", "type": "main", "index": 0 }]
+      ]
+    },
+    "Busca NF Emitida": {
+      "main": [
+        [{ "node": "Processa Dados da NF Emitida", "type": "main", "index": 0 }]
+      ]
+    },
+    "Processa Dados da NF Emitida": {
+      "main": [
+        [
+          { "node": "Envia NF por WhatsApp", "type": "main", "index": 0 },
+          { "node": "Envia NF por Email (Gmail)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Envia NF por WhatsApp": {
+      "main": [
+        [{ "node": "Registra NF na Planilha", "type": "main", "index": 0 }]
+      ]
+    },
+    "Envia NF por Email (Gmail)": {
+      "main": [
+        [{ "node": "Registra NF na Planilha", "type": "main", "index": 0 }]
+      ]
+    },
+    "Registra NF na Planilha": {
+      "main": [
+        [{ "node": "Responde com Dados da NF", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["dental", "nota-fiscal", "nfse", "financeiro"]
+}
