@@ -4,24 +4,18 @@
     {
       "parameters": {
         "rule": {
-          "interval": [
-            {
-              "field": "cronExpression",
-              "expression": "0 9 * * 1,3,5"
-            }
-          ]
+          "interval": [{ "field": "cronExpression", "expression": "0 9 * * 1,3,5" }]
         }
       },
       "id": "trigger-postagem",
-      "name": "Seg/Qua/Sex às 9h — Cria Conteúdo",
+      "name": "Seg/Qua/Sex às 9h",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1,
-      "position": [240, 300],
-      "notes": "Cria e publica posts 3x por semana. Ajuste o cronograma conforme sua necessidade."
+      "position": [240, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Define temas rotativos para os posts\nconst temas = [\n  { tema: 'dica de saúde bucal', tipo: 'dica', emoji: '🦷' },\n  { tema: 'mito vs verdade sobre dentes', tipo: 'mito_verdade', emoji: '✅' },\n  { tema: 'cuidados pós-tratamento dentário', tipo: 'cuidado', emoji: '💊' },\n  { tema: 'importância da visita semestral ao dentista', tipo: 'conscientizacao', emoji: '📅' },\n  { tema: 'alimentos que prejudicam os dentes', tipo: 'alimentacao', emoji: '🍎' },\n  { tema: 'benefícios do clareamento dental', tipo: 'procedimento', emoji: '✨' },\n  { tema: 'como escovar os dentes corretamente', tipo: 'tutorial', emoji: '🪥' },\n  { tema: 'tratamento de canal: desmistificando medos', tipo: 'desmistificacao', emoji: '😌' },\n  { tema: 'cuidados com implantes dentários', tipo: 'procedimento', emoji: '🔩' },\n  { tema: 'ortodontia: quando começar?', tipo: 'conscientizacao', emoji: '😁' }\n];\n\n// Seleciona tema baseado no dia do ano para variedade\nconst diaAno = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);\nconst tema = temas[diaAno % temas.length];\n\nconst diasSemana = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];\nconst diaSemana = diasSemana[new Date().getDay()];\n\nreturn [{ json: { ...tema, diaSemana, dataPost: new Date().toLocaleDateString('pt-BR') } }];"
+        "jsCode": "const temas = [\n  { tema: 'dica de saúde bucal', tipo: 'dica', emoji: '🦷' },\n  { tema: 'mito vs verdade sobre dentes', tipo: 'mito_verdade', emoji: '✅' },\n  { tema: 'cuidados pós-tratamento dentário', tipo: 'cuidado', emoji: '💊' },\n  { tema: 'importância da visita semestral ao dentista', tipo: 'conscientizacao', emoji: '📅' },\n  { tema: 'alimentos que prejudicam os dentes', tipo: 'alimentacao', emoji: '🍎' },\n  { tema: 'benefícios do clareamento dental', tipo: 'procedimento', emoji: '✨' },\n  { tema: 'como escovar os dentes corretamente', tipo: 'tutorial', emoji: '🪥' },\n  { tema: 'tratamento de canal: desmistificando medos', tipo: 'desmistificacao', emoji: '😌' },\n  { tema: 'cuidados com implantes dentários', tipo: 'procedimento', emoji: '🔩' },\n  { tema: 'ortodontia: quando começar?', tipo: 'conscientizacao', emoji: '😁' }\n];\nconst diaAno = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);\nconst tema = temas[diaAno % temas.length];\nconst diasSemana = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];\nreturn [{ json: { ...tema, diaSemana: diasSemana[new Date().getDay()], dataPost: new Date().toLocaleDateString('pt-BR') } }];"
       },
       "id": "seleciona-tema",
       "name": "Seleciona Tema do Dia",
@@ -37,14 +31,14 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "x-api-key",        "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
             { "name": "anthropic-version", "value": "2023-06-01" },
-            { "name": "content-type", "value": "application/json" }
+            { "name": "content-type",      "value": "application/json" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-6\",\n  \"max_tokens\": 1500,\n  \"system\": {{ JSON.stringify($vars.PROMPT_INSTAGRAM) }},\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Crie conteúdo para Instagram e WhatsApp Stories sobre: {{ $json.tema }}\\n\\nDia: {{ $json.diaSemana }}, {{ $json.dataPost }}\\nTipo de conteúdo: {{ $json.tipo }}\\nEmoji principal: {{ $json.emoji }}\\n\\nRetorne em JSON com:\\n- legenda_instagram (com emojis, hashtags, até 2200 caracteres)\\n- texto_story_whatsapp (curto, impactante, até 200 caracteres, para Stories)\\n- hashtags (array com 15-20 hashtags relevantes)\\n- call_to_action (frase de chamada para agendar)\\n- ideia_visual (descrição breve do que a imagem/card deveria mostrar)\"\n    }\n  ]\n}",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-6\",\n  \"max_tokens\": 1500,\n  \"system\": {{ JSON.stringify($vars.PROMPT_INSTAGRAM) }},\n  \"messages\": [{\n    \"role\": \"user\",\n    \"content\": \"Crie conteúdo para Instagram e WhatsApp Stories sobre: {{ $json.tema }}\\nDia: {{ $json.diaSemana }}, {{ $json.dataPost }}\\nTipo: {{ $json.tipo }} {{ $json.emoji }}\\n\\nRetorne JSON com: legenda_instagram, texto_story_whatsapp, hashtags (array), call_to_action, ideia_visual\"\n  }]\n}",
         "options": {}
       },
       "id": "claude-conteudo",
@@ -55,10 +49,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const claudeResponse = $input.first().json;\nconst textoRaw = claudeResponse.content[0].text;\n\n// Parse do JSON retornado pelo Claude\nlet conteudo;\ntry {\n  // Remove possível markdown\n  const jsonMatch = textoRaw.match(/```json([\\s\\S]*?)```/) || textoRaw.match(/({[\\s\\S]*})/);\n  const jsonStr = jsonMatch ? jsonMatch[1].trim() : textoRaw;\n  conteudo = JSON.parse(jsonStr);\n} catch (e) {\n  // Fallback caso Claude não retorne JSON puro\n  conteudo = {\n    legenda_instagram: textoRaw.substring(0, 2200),\n    texto_story_whatsapp: textoRaw.substring(0, 200),\n    hashtags: ['#odontologia', '#dentista', '#saudebuucal', '#dente'],\n    call_to_action: 'Agende sua consulta!',\n    ideia_visual: 'Post informativo sobre saúde bucal'\n  };\n}\n\nreturn [{\n  json: {\n    ...conteudo,\n    tema: $('Seleciona Tema do Dia').item.json.tema\n  }\n}];"
+        "jsCode": "const claudeResponse = $input.first().json;\nconst textoRaw = claudeResponse.content[0].text;\nlet conteudo;\ntry {\n  const jsonMatch = textoRaw.match(/```json([\\s\\S]*?)```/) || textoRaw.match(/({[\\s\\S]*})/);\n  const jsonStr = jsonMatch ? jsonMatch[1].trim() : textoRaw;\n  conteudo = JSON.parse(jsonStr);\n} catch (e) {\n  conteudo = {\n    legenda_instagram: textoRaw.substring(0, 2200),\n    texto_story_whatsapp: textoRaw.substring(0, 200),\n    hashtags: ['#odontologia','#dentista','#saudebuucal'],\n    call_to_action: 'Agende sua consulta!',\n    ideia_visual: 'Post sobre saúde bucal'\n  };\n}\nreturn [{ json: { ...conteudo, tema: $('Seleciona Tema do Dia').item.json.tema, tipo: $('Seleciona Tema do Dia').item.json.tipo } }];"
       },
       "id": "processa-conteudo",
-      "name": "Processa Conteúdo do Claude",
+      "name": "Processa Conteúdo",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [900, 300]
@@ -72,18 +66,14 @@
         "options": {}
       },
       "id": "cria-container-ig",
-      "name": "Cria Container de Mídia (Instagram)",
+      "name": "Cria Container Instagram",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [1120, 200],
-      "notes": "Requer Meta Graph API. Use uma imagem template para o post. Para criar imagens dinâmicas, integre com Canva API ou use templates pré-feitos."
+      "position": [1120, 200]
     },
     {
-      "parameters": {
-        "amount": 3,
-        "unit": "seconds"
-      },
-      "id": "aguarda-container",
+      "parameters": { "amount": 3, "unit": "seconds" },
+      "id": "aguarda",
       "name": "Aguarda 3s",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1,
@@ -94,7 +84,7 @@
         "url": "=https://graph.facebook.com/v18.0/{{ $vars.INSTAGRAM_USER_ID }}/media_publish",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"creation_id\": \"{{ $('Cria Container de Mídia (Instagram)').item.json.id }}\",\n  \"access_token\": \"{{ $vars.META_ACCESS_TOKEN }}\"\n}",
+        "jsonBody": "={\n  \"creation_id\": \"{{ $('Cria Container Instagram').item.json.id }}\",\n  \"access_token\": \"{{ $vars.META_ACCESS_TOKEN }}\"\n}",
         "options": {}
       },
       "id": "publica-instagram",
@@ -109,116 +99,60 @@
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
+        "headerParameters": [{ "name": "apikey", "value": "={{ $vars.EVOLUTION_API_KEY }}" }],
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $vars.WHATSAPP_STATUS_NUMBER }}\",\n  \"text\": \"{{ $('Processa Conteúdo').item.json.texto_story_whatsapp }}\\n\\n{{ $('Processa Conteúdo').item.json.call_to_action }}\\n\\n📞 {{ $vars.TELEFONE_CONSULTORIO }}\"\n}",
+        "options": {}
+      },
+      "id": "publica-story",
+      "name": "Publica Story WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/conteudo_postado",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.EVOLUTION_API_KEY }}" }
+            { "name": "apikey",        "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type",  "value": "application/json" },
+            { "name": "Prefer",        "value": "return=minimal" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"number\": \"{{ $vars.WHATSAPP_STATUS_NUMBER }}\",\n  \"text\": \"{{ $('Processa Conteúdo do Claude').item.json.texto_story_whatsapp }}\\n\\n{{ $('Processa Conteúdo do Claude').item.json.call_to_action }}\\n\\n📞 {{ $vars.TELEFONE_CONSULTORIO }}\",\n  \"statusOptions\": {\n    \"type\": \"text\",\n    \"allContacts\": true\n  }\n}",
+        "jsonBody": "={\n  \"tema\":                  {{ JSON.stringify($('Processa Conteúdo').item.json.tema) }},\n  \"tipo_conteudo\":         \"{{ $('Processa Conteúdo').item.json.tipo }}\",\n  \"legenda_instagram\":     {{ JSON.stringify($('Processa Conteúdo').item.json.legenda_instagram) }},\n  \"texto_story_whatsapp\":  {{ JSON.stringify($('Processa Conteúdo').item.json.texto_story_whatsapp) }},\n  \"hashtags\":              {{ JSON.stringify($('Processa Conteúdo').item.json.hashtags || []) }},\n  \"call_to_action\":        {{ JSON.stringify($('Processa Conteúdo').item.json.call_to_action) }},\n  \"ideia_visual\":          {{ JSON.stringify($('Processa Conteúdo').item.json.ideia_visual) }},\n  \"instagram_post_id\":     \"{{ $('Publica no Instagram').item.json.id }}\",\n  \"publicado_instagram\":   true,\n  \"publicado_instagram_em\": \"{{ new Date().toISOString() }}\",\n  \"publicado_story\":       true,\n  \"publicado_story_em\":    \"{{ new Date().toISOString() }}\",\n  \"data_post\":             \"{{ new Date().toISOString().split('T')[0] }}\"\n}",
         "options": {}
       },
-      "id": "publica-story-whatsapp",
-      "name": "Publica Story WhatsApp",
+      "id": "salva-post-supabase",
+      "name": "Salva Post no Histórico (Supabase)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [1120, 400],
-      "notes": "Publica como Status/Story do WhatsApp via Evolution API. Configure WHATSAPP_STATUS_NUMBER com o número do consultório."
-    },
-    {
-      "parameters": {
-        "operation": "append",
-        "documentId": {
-          "__rl": true,
-          "value": "={{ $vars.GOOGLE_SHEETS_PACIENTES_ID }}",
-          "mode": "id"
-        },
-        "sheetName": "Conteudo Postado",
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "data": "={{ new Date().toLocaleDateString('pt-BR') }}",
-            "tema": "={{ $('Processa Conteúdo do Claude').item.json.tema }}",
-            "legenda_ig": "={{ $('Processa Conteúdo do Claude').item.json.legenda_instagram?.substring(0, 500) }}",
-            "story_whatsapp": "={{ $('Processa Conteúdo do Claude').item.json.texto_story_whatsapp }}",
-            "instagram_post_id": "={{ $('Publica no Instagram').item.json.id }}",
-            "status": "Publicado"
-          }
-        },
-        "options": {}
-      },
-      "id": "registra-post",
-      "name": "Registra Post na Planilha",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4,
-      "position": [1780, 300]
-    },
-    {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "criar-post-manual",
-        "responseMode": "responseNode",
-        "options": {}
-      },
-      "id": "webhook-post-manual",
-      "name": "Webhook — Post Manual (sob demanda)",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1,
-      "position": [240, 600],
-      "notes": "Permite criar posts sob demanda. Envie: { tema: 'texto do tema', tipo: 'dica' }"
+      "position": [1780, 300],
+      "notes": "Registra na tabela conteudo_postado — permite análise de performance ao longo do tempo"
     }
   ],
   "connections": {
-    "Seg/Qua/Sex às 9h — Cria Conteúdo": {
-      "main": [
-        [{ "node": "Seleciona Tema do Dia", "type": "main", "index": 0 }]
-      ]
+    "Seg/Qua/Sex às 9h":        { "main": [[{ "node": "Seleciona Tema do Dia", "type": "main", "index": 0 }]] },
+    "Seleciona Tema do Dia":    { "main": [[{ "node": "Claude AI — Cria Conteúdo", "type": "main", "index": 0 }]] },
+    "Claude AI — Cria Conteúdo":{ "main": [[{ "node": "Processa Conteúdo", "type": "main", "index": 0 }]] },
+    "Processa Conteúdo": {
+      "main": [[
+        { "node": "Cria Container Instagram", "type": "main", "index": 0 },
+        { "node": "Publica Story WhatsApp",   "type": "main", "index": 0 }
+      ]]
     },
-    "Seleciona Tema do Dia": {
-      "main": [
-        [{ "node": "Claude AI — Cria Conteúdo", "type": "main", "index": 0 }]
-      ]
-    },
-    "Claude AI — Cria Conteúdo": {
-      "main": [
-        [{ "node": "Processa Conteúdo do Claude", "type": "main", "index": 0 }]
-      ]
-    },
-    "Processa Conteúdo do Claude": {
-      "main": [
-        [
-          { "node": "Cria Container de Mídia (Instagram)", "type": "main", "index": 0 },
-          { "node": "Publica Story WhatsApp", "type": "main", "index": 0 }
-        ]
-      ]
-    },
-    "Cria Container de Mídia (Instagram)": {
-      "main": [
-        [{ "node": "Aguarda 3s", "type": "main", "index": 0 }]
-      ]
-    },
-    "Aguarda 3s": {
-      "main": [
-        [{ "node": "Publica no Instagram", "type": "main", "index": 0 }]
-      ]
-    },
-    "Publica no Instagram": {
-      "main": [
-        [{ "node": "Registra Post na Planilha", "type": "main", "index": 0 }]
-      ]
-    },
-    "Publica Story WhatsApp": {
-      "main": [
-        [{ "node": "Registra Post na Planilha", "type": "main", "index": 0 }]
-      ]
-    },
-    "Webhook — Post Manual (sob demanda)": {
-      "main": [
-        [{ "node": "Seleciona Tema do Dia", "type": "main", "index": 0 }]
-      ]
-    }
+    "Cria Container Instagram": { "main": [[{ "node": "Aguarda 3s", "type": "main", "index": 0 }]] },
+    "Aguarda 3s":               { "main": [[{ "node": "Publica no Instagram", "type": "main", "index": 0 }]] },
+    "Publica no Instagram":     { "main": [[{ "node": "Salva Post no Histórico (Supabase)", "type": "main", "index": 0 }]] },
+    "Publica Story WhatsApp":   { "main": [[{ "node": "Salva Post no Histórico (Supabase)", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" },
-  "tags": ["dental", "instagram", "whatsapp-stories", "conteudo", "marketing"]
+  "tags": ["dental", "instagram", "supabase", "marketing"]
 }

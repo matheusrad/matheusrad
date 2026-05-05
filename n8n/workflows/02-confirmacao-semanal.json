@@ -4,41 +4,51 @@
     {
       "parameters": {
         "rule": {
-          "interval": [
-            {
-              "field": "cronExpression",
-              "expression": "0 8 * * 1"
-            }
-          ]
+          "interval": [{ "field": "cronExpression", "expression": "0 8 * * 1" }]
         }
       },
       "id": "trigger-segunda",
       "name": "Toda Segunda às 8h",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1,
-      "position": [240, 300],
-      "notes": "Executa toda segunda-feira às 08:00. Pode ajustar para qualquer dia/horário."
+      "position": [240, 300]
     },
     {
       "parameters": {
-        "calendar": "={{ $vars.GOOGLE_CALENDAR_ID }}",
-        "returnAll": true,
-        "options": {
-          "timeMin": "={{ $now.startOf('week').plus({ days: 1 }).toISO() }}",
-          "timeMax": "={{ $now.startOf('week').plus({ days: 7 }).toISO() }}"
-        }
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/consultas",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",        "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Accept",        "value": "application/json" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "select",       "value": "id,paciente_nome,paciente_telefone,data_consulta,status,evento_google_id" },
+            { "name": "data_consulta", "value": "=gte.{{ $now.startOf('week').plus({ days: 1 }).toISO() }}" },
+            { "name": "data_consulta", "value": "=lte.{{ $now.startOf('week').plus({ days: 7 }).toISO() }}" },
+            { "name": "status",       "value": "=in.(Agendado,Confirmado)" }
+          ]
+        },
+        "options": {}
       },
-      "id": "busca-consultas-semana",
-      "name": "Busca Consultas da Semana",
-      "type": "n8n-nodes-base.googleCalendar",
-      "typeVersion": 1,
-      "position": [460, 300]
+      "id": "busca-consultas-semana-supabase",
+      "name": "Busca Consultas da Semana (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 300],
+      "notes": "GET /rest/v1/consultas — filtra consultas desta semana com status Agendado/Confirmado"
     },
     {
       "parameters": {
-        "jsCode": "// Extrai dados de cada consulta para enviar confirmação\nconst eventos = $input.all();\n\nreturn eventos.map(evento => {\n  const e = evento.json;\n  const inicio = new Date(e.start.dateTime || e.start.date);\n  \n  // Extrai telefone da descrição do evento (inserido no agendamento)\n  const descricao = e.description || '';\n  const telefoneMatch = descricao.match(/Telefone:\\s*([\\d]+)/);\n  const telefone = telefoneMatch ? telefoneMatch[1] : null;\n  const nomePaciente = e.summary?.replace('Consulta — ', '') || 'Paciente';\n  \n  const dataFormatada = inicio.toLocaleDateString('pt-BR', {\n    weekday: 'long',\n    day: '2-digit',\n    month: '2-digit'\n  });\n  const horaFormatada = inicio.toLocaleTimeString('pt-BR', {\n    hour: '2-digit',\n    minute: '2-digit'\n  });\n  \n  return {\n    json: {\n      eventoId: e.id,\n      nomePaciente,\n      telefone,\n      dataFormatada,\n      horaFormatada,\n      dataISO: inicio.toISOString(),\n      podeConfirmar: telefone !== null\n    }\n  };\n}).filter(item => item.json.podeConfirmar);"
+        "jsCode": "const consultas = $input.first().json;\nif (!Array.isArray(consultas) || consultas.length === 0) {\n  return [{ json: { semVazia: true } }];\n}\nreturn consultas.map(c => {\n  const inicio = new Date(c.data_consulta);\n  const dataFormatada = inicio.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });\n  const horaFormatada = inicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });\n  return {\n    json: {\n      consultaId: c.id,\n      nomePaciente: c.paciente_nome,\n      telefone: c.paciente_telefone,\n      dataFormatada,\n      horaFormatada,\n      dataISO: c.data_consulta,\n      podeConfirmar: !!c.paciente_telefone\n    }\n  };\n}).filter(i => i.json.podeConfirmar);"
       },
-      "id": "processa-eventos",
+      "id": "processa-lista",
       "name": "Processa Lista de Pacientes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -50,14 +60,12 @@
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "apikey", "value": "={{ $vars.EVOLUTION_API_KEY }}" }
-          ]
-        },
+        "headerParameters": [
+          { "name": "apikey", "value": "={{ $vars.EVOLUTION_API_KEY }}" }
+        ],
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"number\": \"{{ $json.telefone }}\",\n  \"text\": \"Olá, {{ $json.nomePaciente }}! 😊\\n\\nPassando para confirmar sua consulta com a Dra. [NOME DA DENTISTA]:\\n\\n📅 *{{ $json.dataFormatada }}*\\n🕐 *{{ $json.horaFormatada }}*\\n\\nResponda:\\n✅ *SIM* — para confirmar\\n🔄 *REMARCAR* — para escolher outro horário\\n❌ *CANCELAR* — para cancelar\\n\\nEndereço: [ENDEREÇO DO CONSULTÓRIO]\\n\\nAté logo! 🦷\"\n}",
+        "jsonBody": "={\n  \"number\": \"{{ $json.telefone }}\",\n  \"text\": \"Olá, {{ $json.nomePaciente }}! 😊\\n\\nPassando para confirmar sua consulta com a Dra. {{ $vars.NOME_DENTISTA }}:\\n\\n📅 *{{ $json.dataFormatada }}*\\n🕐 *{{ $json.horaFormatada }}*\\n\\nResponda:\\n✅ *SIM* — confirmar\\n🔄 *REMARCAR* — outro horário\\n❌ *CANCELAR* — cancelar\\n\\n{{ $vars.ENDERECO_LOGRADOURO }}, {{ $vars.ENDERECO_NUMERO }} — {{ $vars.ENDERECO_BAIRRO }}\\n\\nAté logo! 🦷\"\n}",
         "options": {}
       },
       "id": "envia-confirmacao",
@@ -68,31 +76,30 @@
     },
     {
       "parameters": {
-        "operation": "appendOrUpdate",
-        "documentId": {
-          "__rl": true,
-          "value": "={{ $vars.GOOGLE_SHEETS_PACIENTES_ID }}",
-          "mode": "id"
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/consultas?id=eq.{{ $json.consultaId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "method": "PATCH",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",        "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type",  "value": "application/json" },
+            { "name": "Prefer",        "value": "return=minimal" }
+          ]
         },
-        "sheetName": "Confirmacoes",
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "evento_id": "={{ $json.eventoId }}",
-            "paciente": "={{ $json.nomePaciente }}",
-            "telefone": "={{ $json.telefone }}",
-            "data_consulta": "={{ $json.dataFormatada }} às {{ $json.horaFormatada }}",
-            "confirmacao_enviada": "={{ new Date().toLocaleDateString('pt-BR') }}",
-            "status_confirmacao": "Aguardando"
-          }
-        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"confirmacao_enviada\": true,\n  \"confirmacao_enviada_em\": \"{{ new Date().toISOString() }}\"\n}",
         "options": {}
       },
-      "id": "registra-confirmacao-enviada",
-      "name": "Registra Confirmação Enviada",
-      "type": "n8n-nodes-base.googleSheets",
+      "id": "marca-confirmacao-enviada",
+      "name": "Marca Confirmação Enviada (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [1120, 300]
+      "position": [1120, 300],
+      "notes": "PATCH /rest/v1/consultas?id=eq.UUID — atualiza flag de confirmação enviada"
     },
     {
       "parameters": {
@@ -105,153 +112,207 @@
       "name": "Webhook — Resposta do Paciente",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 600],
-      "notes": "Mesmo webhook do workflow 01. O workflow 01 deve detectar respostas SIM/REMARCAR/CANCELAR e rotear aqui."
+      "position": [240, 600]
     },
     {
       "parameters": {
-        "jsCode": "const telefone = $input.first().json.telefone;\nconst texto = ($input.first().json.texto || '').toLowerCase().trim();\n\nlet acao = 'desconhecido';\nif (texto.includes('sim') || texto.includes('confirmo') || texto === '1') {\n  acao = 'confirmado';\n} else if (texto.includes('remarcar') || texto.includes('remarca') || texto === '2') {\n  acao = 'remarcar';\n} else if (texto.includes('cancelar') || texto.includes('cancela') || texto === '3') {\n  acao = 'cancelado';\n}\n\nreturn [{ json: { telefone, acao } }];"
+        "jsCode": "const dados = $input.first().json;\nconst telefone = dados.telefone || '';\nconst texto = (dados.texto || '').toLowerCase().trim();\nlet acao = 'desconhecido';\nif (texto.includes('sim') || texto.includes('confirmo') || texto === '1') acao = 'confirmado';\nelse if (texto.includes('remarcar') || texto.includes('remarca') || texto === '2') acao = 'remarcar';\nelse if (texto.includes('cancelar') || texto.includes('cancela') || texto === '3') acao = 'cancelado';\nreturn [{ json: { telefone, acao, texto } }];"
       },
       "id": "interpreta-resposta",
-      "name": "Interpreta Resposta do Paciente",
+      "name": "Interpreta Resposta",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [460, 600]
     },
     {
       "parameters": {
-        "rules": {
-          "rules": [
-            {
-              "operation": "equal",
-              "value1": "={{ $json.acao }}",
-              "value2": "confirmado"
-            },
-            {
-              "operation": "equal",
-              "value1": "={{ $json.acao }}",
-              "value2": "remarcar"
-            },
-            {
-              "operation": "equal",
-              "value1": "={{ $json.acao }}",
-              "value2": "cancelado"
-            }
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/consultas",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",        "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Accept",        "value": "application/json" }
           ]
-        }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "paciente_telefone",    "value": "=eq.{{ $json.telefone }}" },
+            { "name": "confirmacao_enviada",  "value": "=eq.true" },
+            { "name": "status",              "value": "=in.(Agendado,Confirmado)" },
+            { "name": "order",              "value": "data_consulta.asc" },
+            { "name": "limit",              "value": "1" },
+            { "name": "select",             "value": "id,data_consulta,paciente_nome" }
+          ]
+        },
+        "options": {}
       },
-      "id": "switch-acao",
-      "name": "Switch: Ação do Paciente",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3,
+      "id": "busca-consulta-paciente",
+      "name": "Busca Consulta do Paciente (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
       "position": [680, 600]
     },
     {
       "parameters": {
-        "url": "={{ $vars.EVOLUTION_API_URL }}/message/sendText/{{ $vars.EVOLUTION_INSTANCE }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "apikey", "value": "={{ $vars.EVOLUTION_API_KEY }}" }
+        "rules": {
+          "rules": [
+            { "operation": "equal", "value1": "={{ $('Interpreta Resposta').item.json.acao }}", "value2": "confirmado" },
+            { "operation": "equal", "value1": "={{ $('Interpreta Resposta').item.json.acao }}", "value2": "remarcar" },
+            { "operation": "equal", "value1": "={{ $('Interpreta Resposta').item.json.acao }}", "value2": "cancelado" }
           ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"number\": \"{{ $json.telefone }}\",\n  \"text\": \"Perfeito! ✅ Sua consulta está confirmada. Te esperamos no horário combinado! 🦷\\n\\nLembre-se de trazer seus documentos e plano odontológico (se tiver). Até lá!\"\n}",
-        "options": {}
+        }
       },
-      "id": "msg-confirmado",
-      "name": "Msg: Consulta Confirmada",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [900, 480]
-    },
-    {
-      "parameters": {
-        "url": "={{ $vars.EVOLUTION_API_URL }}/message/sendText/{{ $vars.EVOLUTION_INSTANCE }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "apikey", "value": "={{ $vars.EVOLUTION_API_KEY }}" }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"number\": \"{{ $json.telefone }}\",\n  \"text\": \"Claro! Vamos encontrar um horário melhor para você. 🗓️\\n\\nMe diga: qual período você prefere?\\n1️⃣ Manhã (8h-12h)\\n2️⃣ Tarde (13h-18h)\\n\\nE qual dia da semana você prefere?\"\n}",
-        "options": {}
-      },
-      "id": "msg-remarcar",
-      "name": "Msg: Iniciar Remarcação",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
+      "id": "switch-acao",
+      "name": "Switch: Ação",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
       "position": [900, 600]
     },
     {
       "parameters": {
-        "url": "={{ $vars.EVOLUTION_API_URL }}/message/sendText/{{ $vars.EVOLUTION_INSTANCE }}",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/consultas?id=eq.{{ $input.first().json[0]?.id }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
+        "method": "PATCH",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.EVOLUTION_API_KEY }}" }
+            { "name": "apikey",        "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type",  "value": "application/json" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"number\": \"{{ $json.telefone }}\",\n  \"text\": \"Tudo bem! Sua consulta foi cancelada. 😊\\n\\nSempre que quiser agendar novamente, é só mandar mensagem aqui. Cuide-se! 🦷\"\n}",
+        "jsonBody": "={ \"status\": \"Confirmado\", \"confirmacao_resposta\": \"SIM\", \"confirmacao_em\": \"{{ new Date().toISOString() }}\" }",
+        "options": {}
+      },
+      "id": "update-confirmado",
+      "name": "Atualiza: Confirmado (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 480]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/consultas?id=eq.{{ $input.first().json[0]?.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "method": "PATCH",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",        "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"status\": \"Cancelado\", \"confirmacao_resposta\": \"CANCELAR\", \"confirmacao_em\": \"{{ new Date().toISOString() }}\" }",
+        "options": {}
+      },
+      "id": "update-cancelado",
+      "name": "Atualiza: Cancelado (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 720]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.EVOLUTION_API_URL }}/message/sendText/{{ $vars.EVOLUTION_INSTANCE }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": [{ "name": "apikey", "value": "={{ $vars.EVOLUTION_API_KEY }}" }],
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"number\": \"{{ $('Interpreta Resposta').item.json.telefone }}\", \"text\": \"Perfeito! ✅ Consulta confirmada. Te esperamos! 🦷\" }",
+        "options": {}
+      },
+      "id": "msg-confirmado",
+      "name": "Msg: Confirmado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1340, 480]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.EVOLUTION_API_URL }}/message/sendText/{{ $vars.EVOLUTION_INSTANCE }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": [{ "name": "apikey", "value": "={{ $vars.EVOLUTION_API_KEY }}" }],
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"number\": \"{{ $('Interpreta Resposta').item.json.telefone }}\", \"text\": \"Claro! Vamos encontrar outro horário. 🗓️\\n\\nQual período você prefere?\\n1️⃣ Manhã (8h-12h)\\n2️⃣ Tarde (13h-18h)\\n\\nE qual dia da semana?\" }",
+        "options": {}
+      },
+      "id": "msg-remarcar",
+      "name": "Msg: Remarcar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1340, 600]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.EVOLUTION_API_URL }}/message/sendText/{{ $vars.EVOLUTION_INSTANCE }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": [{ "name": "apikey", "value": "={{ $vars.EVOLUTION_API_KEY }}" }],
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"number\": \"{{ $('Interpreta Resposta').item.json.telefone }}\", \"text\": \"Tudo bem! Consulta cancelada. 😊 Quando quiser agendar novamente, é só chamar! Cuide-se! 🦷\" }",
         "options": {}
       },
       "id": "msg-cancelado",
-      "name": "Msg: Consulta Cancelada",
+      "name": "Msg: Cancelado",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [900, 720]
+      "position": [1340, 720]
     }
   ],
   "connections": {
     "Toda Segunda às 8h": {
-      "main": [
-        [{ "node": "Busca Consultas da Semana", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "Busca Consultas da Semana (Supabase)", "type": "main", "index": 0 }]]
     },
-    "Busca Consultas da Semana": {
-      "main": [
-        [{ "node": "Processa Lista de Pacientes", "type": "main", "index": 0 }]
-      ]
+    "Busca Consultas da Semana (Supabase)": {
+      "main": [[{ "node": "Processa Lista de Pacientes", "type": "main", "index": 0 }]]
     },
     "Processa Lista de Pacientes": {
-      "main": [
-        [{ "node": "Envia Confirmação WhatsApp", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "Envia Confirmação WhatsApp", "type": "main", "index": 0 }]]
     },
     "Envia Confirmação WhatsApp": {
-      "main": [
-        [{ "node": "Registra Confirmação Enviada", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "Marca Confirmação Enviada (Supabase)", "type": "main", "index": 0 }]]
     },
     "Webhook — Resposta do Paciente": {
+      "main": [[{ "node": "Interpreta Resposta", "type": "main", "index": 0 }]]
+    },
+    "Interpreta Resposta": {
+      "main": [[{ "node": "Busca Consulta do Paciente (Supabase)", "type": "main", "index": 0 }]]
+    },
+    "Busca Consulta do Paciente (Supabase)": {
+      "main": [[{ "node": "Switch: Ação", "type": "main", "index": 0 }]]
+    },
+    "Switch: Ação": {
       "main": [
-        [{ "node": "Interpreta Resposta do Paciente", "type": "main", "index": 0 }]
+        [{ "node": "Atualiza: Confirmado (Supabase)", "type": "main", "index": 0 }],
+        [{ "node": "Msg: Remarcar", "type": "main", "index": 0 }],
+        [{ "node": "Atualiza: Cancelado (Supabase)", "type": "main", "index": 0 }]
       ]
     },
-    "Interpreta Resposta do Paciente": {
-      "main": [
-        [{ "node": "Switch: Ação do Paciente", "type": "main", "index": 0 }]
-      ]
+    "Atualiza: Confirmado (Supabase)": {
+      "main": [[{ "node": "Msg: Confirmado", "type": "main", "index": 0 }]]
     },
-    "Switch: Ação do Paciente": {
-      "main": [
-        [{ "node": "Msg: Consulta Confirmada", "type": "main", "index": 0 }],
-        [{ "node": "Msg: Iniciar Remarcação", "type": "main", "index": 0 }],
-        [{ "node": "Msg: Consulta Cancelada", "type": "main", "index": 0 }]
-      ]
+    "Atualiza: Cancelado (Supabase)": {
+      "main": [[{ "node": "Msg: Cancelado", "type": "main", "index": 0 }]]
     }
   },
   "settings": { "executionOrder": "v1" },
-  "tags": ["dental", "whatsapp", "confirmacao", "agenda"]
+  "tags": ["dental", "whatsapp", "confirmacao", "supabase"]
 }

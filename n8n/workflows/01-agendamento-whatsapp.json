@@ -12,8 +12,7 @@
       "name": "Webhook WhatsApp (Evolution API)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 300],
-      "notes": "Recebe mensagens do WhatsApp via Evolution API. Configure a URL deste webhook na Evolution API."
+      "position": [240, 300]
     },
     {
       "parameters": {
@@ -35,7 +34,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extrai dados da mensagem do WhatsApp\nconst body = $input.first().json.body;\nconst message = body.data?.message;\nconst key = body.data?.key;\n\nconst telefone = key?.remoteJid?.replace('@s.whatsapp.net', '') || '';\nconst texto = message?.conversation || \n              message?.extendedTextMessage?.text || \n              '';\nconst nomeRemetente = body.data?.pushName || 'Paciente';\nconst messageId = key?.id || '';\n\nreturn [{\n  json: {\n    telefone,\n    texto,\n    nomeRemetente,\n    messageId,\n    timestamp: new Date().toISOString()\n  }\n}];"
+        "jsCode": "const body = $input.first().json.body;\nconst message = body.data?.message;\nconst key = body.data?.key;\nconst telefone = key?.remoteJid?.replace('@s.whatsapp.net', '') || '';\nconst texto = message?.conversation || message?.extendedTextMessage?.text || '';\nconst nomeRemetente = body.data?.pushName || 'Paciente';\nconst messageId = key?.id || '';\nreturn [{ json: { telefone, texto, nomeRemetente, messageId, timestamp: new Date().toISOString() } }];"
       },
       "id": "extrai-dados",
       "name": "Extrai Dados da Mensagem",
@@ -45,22 +44,42 @@
     },
     {
       "parameters": {
-        "operation": "lookup",
-        "documentId": {
-          "__rl": true,
-          "value": "={{ $vars.GOOGLE_SHEETS_PACIENTES_ID }}",
-          "mode": "id"
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/pacientes",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",        "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Accept",        "value": "application/json" }
+          ]
         },
-        "sheetName": "Pacientes",
-        "lookupColumn": "telefone",
-        "lookupValue": "={{ $json.telefone }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "telefone", "value": "=eq.{{ $json.telefone }}" },
+            { "name": "select",   "value": "id,nome,telefone,email,tem_alergia,descricao_alergia,novo_paciente,total_consultas" }
+          ]
+        },
         "options": {}
       },
-      "id": "busca-paciente",
-      "name": "Busca Paciente na Base",
-      "type": "n8n-nodes-base.googleSheets",
+      "id": "busca-paciente-supabase",
+      "name": "Busca Paciente (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [900, 220]
+      "position": [900, 220],
+      "notes": "GET /rest/v1/pacientes?telefone=eq.NUMERO — retorna array vazio se não cadastrado"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verifica se paciente existe no array retornado\nconst lista = $input.first().json;\nconst paciente = Array.isArray(lista) && lista.length > 0 ? lista[0] : null;\nreturn [{ json: { paciente, ehNovo: paciente === null } }];"
+      },
+      "id": "verifica-paciente",
+      "name": "Verifica se é Novo Paciente",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 220]
     },
     {
       "parameters": {
@@ -73,17 +92,17 @@
       "name": "Horários Livres (próximos 14 dias)",
       "type": "n8n-nodes-base.googleCalendar",
       "typeVersion": 1,
-      "position": [1120, 220]
+      "position": [1300, 220]
     },
     {
       "parameters": {
-        "jsCode": "// Gera lista de horários disponíveis com base na agenda\n// Horário de atendimento: Segunda a Sexta 8h-18h, Sábado 8h-12h\nconst ocupados = $input.first().json.busy || [];\nconst ocupadosSet = new Set(ocupados.map(b => b.start));\n\nconst horarios = [];\nconst agora = new Date();\n\nfor (let d = 1; d <= 14; d++) {\n  const data = new Date(agora);\n  data.setDate(data.getDate() + d);\n  const diaSemana = data.getDay();\n  \n  // Pula domingo (0)\n  if (diaSemana === 0) continue;\n  \n  // Sábado só até 12h\n  const horaFim = diaSemana === 6 ? 12 : 18;\n  \n  for (let h = 8; h < horaFim; h++) {\n    const slot = new Date(data);\n    slot.setHours(h, 0, 0, 0);\n    const slotISO = slot.toISOString();\n    \n    if (!ocupadosSet.has(slotISO)) {\n      horarios.push({\n        iso: slotISO,\n        display: slot.toLocaleDateString('pt-BR', { \n          weekday: 'long', day: '2-digit', month: '2-digit' \n        }) + ' às ' + h + ':00'\n      });\n    }\n  }\n}\n\n// Retorna os próximos 6 slots disponíveis\nreturn [{ json: { horarios: horarios.slice(0, 6) } }];"
+        "jsCode": "const ocupados = $input.first().json.busy || [];\nconst ocupadosSet = new Set(ocupados.map(b => b.start));\nconst horarios = [];\nconst agora = new Date();\nfor (let d = 1; d <= 14; d++) {\n  const data = new Date(agora);\n  data.setDate(data.getDate() + d);\n  const diaSemana = data.getDay();\n  if (diaSemana === 0) continue;\n  const horaFim = diaSemana === 6 ? 12 : 18;\n  for (let h = 8; h < horaFim; h++) {\n    const slot = new Date(data);\n    slot.setHours(h, 0, 0, 0);\n    const slotISO = slot.toISOString();\n    if (!ocupadosSet.has(slotISO)) {\n      horarios.push({\n        iso: slotISO,\n        display: slot.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' }) + ' às ' + h + ':00'\n      });\n    }\n  }\n}\nreturn [{ json: { horarios: horarios.slice(0, 6) } }];"
       },
       "id": "processa-horarios",
       "name": "Processa Horários Disponíveis",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1340, 220]
+      "position": [1500, 220]
     },
     {
       "parameters": {
@@ -93,40 +112,37 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
-            { "name": "anthropic-version", "value": "2023-06-01" },
-            { "name": "content-type", "value": "application/json" }
+            { "name": "x-api-key",          "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version",   "value": "2023-06-01" },
+            { "name": "content-type",        "value": "application/json" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-6\",\n  \"max_tokens\": 1024,\n  \"system\": {{ JSON.stringify($vars.PROMPT_SECRETARIA) }},\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Paciente: {{ $('Extrai Dados da Mensagem').item.json.nomeRemetente }}\\nMensagem: {{ $('Extrai Dados da Mensagem').item.json.texto }}\\n\\nPaciente já cadastrado: {{ $('Busca Paciente na Base').item.json.nome ? 'Sim, ' + $('Busca Paciente na Base').item.json.nome : 'Não (novo paciente)' }}\\n\\nHorários disponíveis nos próximos 14 dias:\\n{{ $('Processa Horários Disponíveis').item.json.horarios.map((h, i) => (i+1) + '. ' + h.display).join('\\n') }}\\n\\nResponda naturalmente como secretária. Se o paciente quer agendar, apresente os horários disponíveis numerados e peça para escolher. Se confirmou horário específico, diga que vai confirmar o agendamento.\"\n    }\n  ]\n}",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-6\",\n  \"max_tokens\": 1024,\n  \"system\": {{ JSON.stringify($vars.PROMPT_SECRETARIA) }},\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Paciente: {{ $('Extrai Dados da Mensagem').item.json.nomeRemetente }}\\nMensagem: {{ $('Extrai Dados da Mensagem').item.json.texto }}\\nCadastrado no sistema: {{ !$('Verifica se é Novo Paciente').item.json.ehNovo ? 'Sim — ' + ($('Verifica se é Novo Paciente').item.json.paciente?.nome || '') : 'Não (novo paciente)' }}\\n\\nHorários disponíveis:\\n{{ $('Processa Horários Disponíveis').item.json.horarios.map((h, i) => (i+1) + '. ' + h.display).join('\\n') }}\\n\\nResponda naturalmente. Se o paciente quer agendar, apresente os horários numerados.\"\n    }\n  ]\n}",
         "options": {}
       },
       "id": "claude-secretaria",
       "name": "Claude AI — Secretária Virtual",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [1560, 220]
+      "position": [1700, 220]
     },
     {
       "parameters": {
-        "jsCode": "// Extrai a resposta do Claude e detecta se houve confirmação de horário\nconst claudeResponse = $input.first().json;\nconst textoResposta = claudeResponse.content[0].text;\n\n// Tenta detectar se o paciente escolheu um horário (análise simples)\nconst mensagemOriginal = $('Extrai Dados da Mensagem').item.json.texto.toLowerCase();\nconst horarios = $('Processa Horários Disponíveis').item.json.horarios;\n\nlet horarioEscolhido = null;\nconst numEscolhido = parseInt(mensagemOriginal.match(/\\b([1-6])\\b/)?.[1]);\nif (numEscolhido && numEscolhido >= 1 && numEscolhido <= horarios.length) {\n  horarioEscolhido = horarios[numEscolhido - 1];\n}\n\nreturn [{\n  json: {\n    textoResposta,\n    horarioEscolhido,\n    deveAgendar: horarioEscolhido !== null\n  }\n}];"
+        "jsCode": "const claudeResponse = $input.first().json;\nconst textoResposta = claudeResponse.content[0].text;\nconst mensagemOriginal = $('Extrai Dados da Mensagem').item.json.texto.toLowerCase();\nconst horarios = $('Processa Horários Disponíveis').item.json.horarios;\nlet horarioEscolhido = null;\nconst numEscolhido = parseInt(mensagemOriginal.match(/\\b([1-6])\\b/)?.[1]);\nif (numEscolhido && numEscolhido >= 1 && numEscolhido <= horarios.length) {\n  horarioEscolhido = horarios[numEscolhido - 1];\n}\nreturn [{ json: { textoResposta, horarioEscolhido, deveAgendar: horarioEscolhido !== null } }];"
       },
       "id": "processa-resposta-claude",
       "name": "Processa Resposta Claude",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1780, 220]
+      "position": [1900, 220]
     },
     {
       "parameters": {
         "conditions": {
           "boolean": [
-            {
-              "value1": "={{ $json.deveAgendar }}",
-              "value2": true
-            }
+            { "value1": "={{ $json.deveAgendar }}", "value2": true }
           ]
         }
       },
@@ -134,7 +150,7 @@
       "name": "Horário Confirmado?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [2000, 220]
+      "position": [2100, 220]
     },
     {
       "parameters": {
@@ -151,35 +167,58 @@
       "name": "Cria Evento no Google Calendar",
       "type": "n8n-nodes-base.googleCalendar",
       "typeVersion": 1,
-      "position": [2220, 140]
+      "position": [2300, 140]
     },
     {
       "parameters": {
-        "operation": "appendOrUpdate",
-        "documentId": {
-          "__rl": true,
-          "value": "={{ $vars.GOOGLE_SHEETS_PACIENTES_ID }}",
-          "mode": "id"
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/consultas",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",        "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type",  "value": "application/json" },
+            { "name": "Prefer",        "value": "return=representation" }
+          ]
         },
-        "sheetName": "Consultas",
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "paciente": "={{ $('Extrai Dados da Mensagem').item.json.nomeRemetente }}",
-            "telefone": "={{ $('Extrai Dados da Mensagem').item.json.telefone }}",
-            "data_consulta": "={{ $('Processa Resposta Claude').item.json.horarioEscolhido.display }}",
-            "data_agendamento": "={{ new Date().toLocaleDateString('pt-BR') }}",
-            "status": "Confirmado",
-            "evento_id": "={{ $('Cria Evento no Google Calendar').item.json.id }}"
-          }
-        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"paciente_id\": {{ $('Verifica se é Novo Paciente').item.json.paciente?.id ? '\"' + $('Verifica se é Novo Paciente').item.json.paciente.id + '\"' : 'null' }},\n  \"paciente_nome\": \"{{ $('Extrai Dados da Mensagem').item.json.nomeRemetente }}\",\n  \"paciente_telefone\": \"{{ $('Extrai Dados da Mensagem').item.json.telefone }}\",\n  \"data_consulta\": \"{{ $('Processa Resposta Claude').item.json.horarioEscolhido.iso }}\",\n  \"data_fim_consulta\": \"{{ DateTime.fromISO($('Processa Resposta Claude').item.json.horarioEscolhido.iso).plus({ hours: 1 }).toISO() }}\",\n  \"evento_google_id\": \"{{ $('Cria Evento no Google Calendar').item.json.id }}\",\n  \"canal_agendamento\": \"WhatsApp\",\n  \"status\": \"Agendado\"\n}",
         "options": {}
       },
-      "id": "registra-consulta",
-      "name": "Registra Consulta na Planilha",
-      "type": "n8n-nodes-base.googleSheets",
+      "id": "insere-consulta-supabase",
+      "name": "Registra Consulta (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [2220, 300]
+      "position": [2300, 300],
+      "notes": "POST /rest/v1/consultas — insere nova consulta no PostgreSQL"
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/historico_mensagens",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",        "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"telefone\": \"{{ $('Extrai Dados da Mensagem').item.json.telefone }}\",\n  \"paciente_id\": {{ $('Verifica se é Novo Paciente').item.json.paciente?.id ? '\"' + $('Verifica se é Novo Paciente').item.json.paciente.id + '\"' : 'null' }},\n  \"message_id\": \"{{ $('Extrai Dados da Mensagem').item.json.messageId }}\",\n  \"direcao\": \"recebida\",\n  \"texto\": {{ JSON.stringify($('Extrai Dados da Mensagem').item.json.texto) }},\n  \"intencao_detectada\": \"{{ $('Processa Resposta Claude').item.json.deveAgendar ? 'agendar' : 'conversa' }}\",\n  \"workflow_acionado\": \"01-agendamento\"\n}",
+        "options": {}
+      },
+      "id": "log-mensagem-supabase",
+      "name": "Loga Mensagem (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2300, 460],
+      "notes": "Registra auditoria de todas as mensagens recebidas"
     },
     {
       "parameters": {
@@ -201,7 +240,7 @@
       "name": "Envia Resposta WhatsApp",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [2440, 220]
+      "position": [2520, 220]
     },
     {
       "parameters": {
@@ -212,14 +251,12 @@
       "name": "Responde Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2660, 300]
+      "position": [2720, 300]
     }
   ],
   "connections": {
     "Webhook WhatsApp (Evolution API)": {
-      "main": [
-        [{ "node": "É mensagem nova?", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "É mensagem nova?", "type": "main", "index": 0 }]]
     },
     "É mensagem nova?": {
       "main": [
@@ -228,67 +265,49 @@
       ]
     },
     "Extrai Dados da Mensagem": {
-      "main": [
-        [{ "node": "Busca Paciente na Base", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "Busca Paciente (Supabase)", "type": "main", "index": 0 }]]
     },
-    "Busca Paciente na Base": {
-      "main": [
-        [{ "node": "Horários Livres (próximos 14 dias)", "type": "main", "index": 0 }]
-      ]
+    "Busca Paciente (Supabase)": {
+      "main": [[{ "node": "Verifica se é Novo Paciente", "type": "main", "index": 0 }]]
+    },
+    "Verifica se é Novo Paciente": {
+      "main": [[{ "node": "Horários Livres (próximos 14 dias)", "type": "main", "index": 0 }]]
     },
     "Horários Livres (próximos 14 dias)": {
-      "main": [
-        [{ "node": "Processa Horários Disponíveis", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "Processa Horários Disponíveis", "type": "main", "index": 0 }]]
     },
     "Processa Horários Disponíveis": {
-      "main": [
-        [{ "node": "Claude AI — Secretária Virtual", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "Claude AI — Secretária Virtual", "type": "main", "index": 0 }]]
     },
     "Claude AI — Secretária Virtual": {
-      "main": [
-        [{ "node": "Processa Resposta Claude", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "Processa Resposta Claude", "type": "main", "index": 0 }]]
     },
     "Processa Resposta Claude": {
-      "main": [
-        [{ "node": "Horário Confirmado?", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "Horário Confirmado?", "type": "main", "index": 0 }]]
     },
     "Horário Confirmado?": {
       "main": [
         [
           { "node": "Cria Evento no Google Calendar", "type": "main", "index": 0 },
-          { "node": "Registra Consulta na Planilha", "type": "main", "index": 0 }
+          { "node": "Registra Consulta (Supabase)", "type": "main", "index": 0 },
+          { "node": "Loga Mensagem (Supabase)", "type": "main", "index": 0 }
         ],
         [{ "node": "Envia Resposta WhatsApp", "type": "main", "index": 0 }]
       ]
     },
     "Cria Evento no Google Calendar": {
-      "main": [
-        [{ "node": "Envia Resposta WhatsApp", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "Envia Resposta WhatsApp", "type": "main", "index": 0 }]]
     },
-    "Registra Consulta na Planilha": {
-      "main": [
-        [{ "node": "Envia Resposta WhatsApp", "type": "main", "index": 0 }]
-      ]
+    "Registra Consulta (Supabase)": {
+      "main": [[{ "node": "Envia Resposta WhatsApp", "type": "main", "index": 0 }]]
+    },
+    "Loga Mensagem (Supabase)": {
+      "main": [[{ "node": "Envia Resposta WhatsApp", "type": "main", "index": 0 }]]
     },
     "Envia Resposta WhatsApp": {
-      "main": [
-        [{ "node": "Responde Webhook", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "Responde Webhook", "type": "main", "index": 0 }]]
     }
   },
-  "settings": {
-    "executionOrder": "v1"
-  },
-  "staticData": null,
-  "meta": {
-    "description": "Secretária virtual que recebe mensagens do WhatsApp, entende a intenção do paciente via Claude AI, verifica disponibilidade no Google Calendar e realiza agendamentos automaticamente.",
-    "templateId": "dental-01"
-  },
-  "tags": ["dental", "whatsapp", "agendamento", "claude"]
+  "settings": { "executionOrder": "v1" },
+  "tags": ["dental", "whatsapp", "agendamento", "claude", "supabase"]
 }
