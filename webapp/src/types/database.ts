@@ -150,6 +150,89 @@ export interface Database {
         Insert: Omit<Database['public']['Tables']['documentos']['Row'], 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['documentos']['Insert']>
       }
+      orcamentos: {
+        Row: {
+          id: string
+          paciente_id: string | null
+          numero_orcamento: string | null
+          descricao: string | null
+          valor_total: number
+          status: 'Aberto' | 'Aprovado' | 'Rejeitado' | 'Cancelado' | 'Concluido'
+          validade: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['orcamentos']['Row'], 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Database['public']['Tables']['orcamentos']['Insert']>
+      }
+      tratamentos: {
+        Row: {
+          id: string
+          paciente_id: string | null
+          orcamento_id: string | null
+          numero_dente: number | null
+          face: string | null
+          procedimento: string
+          status: 'Em aberto' | 'Finalizado' | 'Cancelado'
+          valor: number | null
+          data_realizacao: string | null
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['tratamentos']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['tratamentos']['Insert']>
+      }
+      pagamentos: {
+        Row: {
+          id: string
+          paciente_id: string | null
+          orcamento_id: string | null
+          valor: number
+          forma_pagamento: string
+          data_pagamento: string
+          status: 'Pago' | 'Pendente' | 'Cancelado'
+          descricao: string | null
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['pagamentos']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['pagamentos']['Insert']>
+      }
+      evolucoes: {
+        Row: {
+          id: string
+          paciente_id: string | null
+          consulta_id: string | null
+          numero_dente: number | null
+          descricao: string
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['evolucoes']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['evolucoes']['Insert']>
+      }
+      arquivos: {
+        Row: {
+          id: string
+          paciente_id: string | null
+          nome_arquivo: string
+          tipo_arquivo: string | null
+          url_arquivo: string | null
+          tamanho_bytes: number | null
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['arquivos']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['arquivos']['Insert']>
+      }
+      anamneses: {
+        Row: {
+          id: string
+          paciente_id: string | null
+          link_pdf: string | null
+          html_gerado: string | null
+          dados_formulario: Record<string, unknown> | null
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['anamneses']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['anamneses']['Insert']>
+      }
     }
     Views: {
       vw_consultas_semana: {

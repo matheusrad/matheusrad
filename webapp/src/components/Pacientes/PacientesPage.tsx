@@ -1,12 +1,12 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, SlidersHorizontal, Phone, Calendar, AlertTriangle } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Plus, Search, SlidersHorizontal, Phone, AlertTriangle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Paciente } from '@/types/database'
-import { format, differenceInYears, differenceInDays, parseISO, isToday, getMonth, getDate } from 'date-fns'
+import { format, differenceInDays, parseISO, getMonth, getDate } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { CadastrarPacienteModal } from './CadastrarPacienteModal'
-import { PacienteDetalheModal } from './PacienteDetalheModal'
 import clsx from 'clsx'
 
 type Tab = 'buscar' | 'aniversariantes' | 'retornos'
@@ -39,12 +39,12 @@ function UltimaConsulta({ data }: { data: string | null }) {
 }
 
 export function PacientesPage() {
+  const router = useRouter()
   const [tab, setTab] = useState<Tab>('buscar')
   const [busca, setBusca] = useState('')
   const [pacientes, setPacientes] = useState<Paciente[]>([])
   const [loading, setLoading] = useState(true)
   const [showCadastro, setShowCadastro] = useState(false)
-  const [pacienteSelecionado, setPacienteSelecionado] = useState<Paciente | null>(null)
 
   const fetchPacientes = useCallback(async () => {
     setLoading(true)
@@ -175,7 +175,7 @@ export function PacientesPage() {
             lista.map(p => (
               <button
                 key={p.id}
-                onClick={() => setPacienteSelecionado(p)}
+                onClick={() => router.push(`/pacientes/${p.id}`)}
                 className="w-full grid grid-cols-[1fr_160px_180px] gap-4 px-6 py-4 hover:bg-gray-50 transition-colors text-left items-center"
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -218,13 +218,6 @@ export function PacientesPage() {
         <CadastrarPacienteModal
           onClose={() => setShowCadastro(false)}
           onSaved={() => { setShowCadastro(false); fetchPacientes() }}
-        />
-      )}
-      {pacienteSelecionado && (
-        <PacienteDetalheModal
-          paciente={pacienteSelecionado}
-          onClose={() => setPacienteSelecionado(null)}
-          onUpdated={fetchPacientes}
         />
       )}
     </div>
