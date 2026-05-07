@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   CalendarDays, Users, BarChart2, MessageCircle,
-  Instagram, FileText, Settings, Stethoscope,
+  Instagram, FileText, Settings, Stethoscope, FlaskConical,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -13,7 +13,8 @@ const nav = [
   { href: '/financeiro',label: 'Financeiro', icon: BarChart2     },
   { href: '/mensagens', label: 'Mensagens',  icon: MessageCircle },
   { href: '/instagram', label: 'Instagram',  icon: Instagram     },
-  { href: '/documentos',label: 'Documentos', icon: FileText      },
+  { href: '/documentos',        label: 'Documentos',       icon: FileText     },
+  { href: '/controle-protese',   label: 'Controle Prótese', icon: FlaskConical },
 ]
 
 export function Sidebar() {

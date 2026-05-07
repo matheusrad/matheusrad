@@ -1,11 +1,11 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Edit2, AlertCircle, Phone, Mail, Cake, FileText,
-  Plus, Calendar, Clock, CheckCircle2, XCircle, DollarSign,
-  Upload, Download, Trash2, ChevronRight, User, Clipboard,
-  Activity, CreditCard, Folder, Archive,
+  Plus, Calendar, CheckCircle2, XCircle, DollarSign,
+  Download, ChevronRight, User, Clipboard,
+  Activity, CreditCard, Folder, Archive, Star, Mic, Sparkles,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Paciente, Consulta, Documento } from '@/types/database'
@@ -56,6 +56,10 @@ export function PacienteDetalhePage({ id }: { id: string }) {
   const [documentos, setDocumentos] = useState<Documento[]>([])
   const [loading, setLoading] = useState(true)
   const [editando, setEditando] = useState(false)
+  const [evolucaoData, setEvolucaoData] = useState(new Date().toISOString().split('T')[0])
+  const [assinarDigitalmente, setAssinarDigitalmente] = useState(false)
+  const [showBannerEvolucao, setShowBannerEvolucao] = useState(true)
+  const evolucaoRef = useRef<HTMLDivElement>(null)
 
   // Mock tratamentos per tooth (in production comes from tratamentos table)
   const [tratamentos] = useState<Record<number, ToothTratamento>>({})
@@ -391,12 +395,101 @@ export function PacienteDetalhePage({ id }: { id: string }) {
           {/* EVOLUÇÕES */}
           {tab === 'evolucoes' && (
             <div>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-semibold text-gray-800">Evoluções clínicas</h2>
-                <button className="btn-primary">
-                  <Plus size={14} /> Adicionar evolução
-                </button>
+              <h2 className="font-semibold text-gray-800 mb-4">Evoluções</h2>
+
+              {/* Editor */}
+              <div className="border border-gray-200 rounded-xl overflow-hidden mb-4">
+                {/* Toolbar */}
+                <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 border-b border-gray-100 bg-white">
+                  <select className="input py-1 text-sm h-8 w-56">
+                    <option>{paciente.nome.split(' ').slice(0,3).join(' ')}</option>
+                  </select>
+                  <input
+                    type="date"
+                    value={evolucaoData}
+                    onChange={e => setEvolucaoData(e.target.value)}
+                    className="input py-1 text-sm h-8 w-36"
+                  />
+                  <div className="flex items-center gap-0.5 ml-auto">
+                    <button onClick={() => document.execCommand('bold')} className="p-1.5 hover:bg-gray-100 rounded font-bold text-xs text-gray-700 w-6 h-6 flex items-center justify-center">B</button>
+                    <button onClick={() => document.execCommand('italic')} className="p-1.5 hover:bg-gray-100 rounded italic text-xs text-gray-700 w-6 h-6 flex items-center justify-center">I</button>
+                    <button onClick={() => document.execCommand('strikeThrough')} className="p-1.5 hover:bg-gray-100 rounded line-through text-xs text-gray-700 w-6 h-6 flex items-center justify-center">S</button>
+                    <div className="w-px h-4 bg-gray-200 mx-1" />
+                    <button onClick={() => document.execCommand('justifyLeft')} title="Esquerda" className="p-1 hover:bg-gray-100 rounded text-gray-500">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                    </button>
+                    <button onClick={() => document.execCommand('justifyCenter')} title="Centro" className="p-1 hover:bg-gray-100 rounded text-gray-500">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                    </button>
+                    <button onClick={() => document.execCommand('justifyRight')} title="Direita" className="p-1 hover:bg-gray-100 rounded text-gray-500">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                    </button>
+                    <div className="w-px h-4 bg-gray-200 mx-1" />
+                    <button onClick={() => document.execCommand('insertUnorderedList')} title="Lista" className="p-1 hover:bg-gray-100 rounded text-gray-500">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+                    </button>
+                    <button onClick={() => document.execCommand('insertOrderedList')} title="Lista numerada" className="p-1 hover:bg-gray-100 rounded text-gray-500">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4M4 10h2" strokeLinecap="round"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" strokeLinecap="round"/></svg>
+                    </button>
+                    <div className="w-px h-4 bg-gray-200 mx-1" />
+                    <button onClick={() => document.execCommand('undo')} title="Desfazer" className="p-1 hover:bg-gray-100 rounded text-gray-500">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+                    </button>
+                    <button onClick={() => document.execCommand('redo')} title="Refazer" className="p-1 hover:bg-gray-100 rounded text-gray-500">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Editable area */}
+                <div
+                  ref={evolucaoRef}
+                  contentEditable
+                  suppressContentEditableWarning
+                  className="min-h-[160px] p-4 text-sm text-gray-700 outline-none"
+                  data-placeholder="Descreva a evolução do tratamento desse paciente."
+                  style={{ ':empty::before': { content: 'attr(data-placeholder)', color: '#9ca3af' } } as React.CSSProperties}
+                  onFocus={e => { if (!e.currentTarget.textContent) e.currentTarget.style.color = '' }}
+                />
+
+                {/* Footer actions */}
+                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+                  <div className="flex items-center gap-4">
+                    <button className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                      <Mic size={13} /> Transcrever com IA
+                    </button>
+                    <button className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                      <Sparkles size={13} /> Melhorar com IA
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
+                      <div
+                        onClick={() => setAssinarDigitalmente(v => !v)}
+                        className={`w-8 h-4 rounded-full transition-colors relative cursor-pointer ${assinarDigitalmente ? 'bg-blue-600' : 'bg-gray-300'}`}
+                      >
+                        <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${assinarDigitalmente ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                      </div>
+                      Assinar digitalmente
+                    </label>
+                    <button className="btn-primary py-1.5 px-4 text-sm flex items-center gap-1.5">
+                      <CheckCircle2 size={13} /> Salvar evolução
+                    </button>
+                  </div>
+                </div>
               </div>
+
+              {/* Info banner */}
+              {showBannerEvolucao && (
+                <div className="flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-xl p-3 mb-6 text-xs text-blue-700">
+                  <Sparkles size={13} className="shrink-0 text-yellow-500" />
+                  <span className="flex-1">Seu plano permite assinar digitalmente quantos documentos quiser, sem custo extra. Aproveite!</span>
+                  <button onClick={() => setShowBannerEvolucao(false)} className="text-blue-300 hover:text-blue-500">
+                    <XCircle size={14} />
+                  </button>
+                </div>
+              )}
+
               <EmptyState
                 icon={Activity}
                 title="Você ainda não registrou evoluções para este paciente. Vamos começar?"
@@ -409,9 +502,20 @@ export function PacienteDetalhePage({ id }: { id: string }) {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="font-semibold text-gray-800">Documentos</h2>
-                <button className="btn-primary">
-                  <Plus size={14} /> Gerar documento
-                </button>
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <button className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5">
+                    <Star size={13} /> Prescrição inteligente
+                  </button>
+                  <button className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5">
+                    <FileText size={13} /> Emitir prescrição
+                  </button>
+                  <button className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5">
+                    <FileText size={13} /> Emitir atestado
+                  </button>
+                  <button className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5">
+                    <Folder size={13} /> Personalizar
+                  </button>
+                </div>
               </div>
               {documentos.length === 0 ? (
                 <EmptyState icon={FileText} title="Nenhum documento gerado para este paciente" />
@@ -442,13 +546,13 @@ export function PacienteDetalhePage({ id }: { id: string }) {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="font-semibold text-gray-800">Arquivos</h2>
-                <button className="btn-primary">
-                  <Upload size={14} /> Enviar arquivo
+                <button className="btn-primary text-sm py-1.5 px-4 flex items-center gap-1.5">
+                  <Plus size={14} /> Adicionar
                 </button>
               </div>
               <EmptyState
                 icon={Archive}
-                title="Nenhum arquivo anexado"
+                title="Ainda não foram adicionados arquivos neste prontuário. Vamos começar?"
               />
             </div>
           )}
