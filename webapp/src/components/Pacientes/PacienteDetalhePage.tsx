@@ -446,10 +446,8 @@ export function PacienteDetalhePage({ id }: { id: string }) {
                   ref={evolucaoRef}
                   contentEditable
                   suppressContentEditableWarning
-                  className="min-h-[160px] p-4 text-sm text-gray-700 outline-none"
+                  className="evolucao-editor min-h-[160px] p-4 text-sm text-gray-700 outline-none"
                   data-placeholder="Descreva a evolução do tratamento desse paciente."
-                  style={{ ':empty::before': { content: 'attr(data-placeholder)', color: '#9ca3af' } } as React.CSSProperties}
-                  onFocus={e => { if (!e.currentTarget.textContent) e.currentTarget.style.color = '' }}
                 />
 
                 {/* Footer actions */}
