@@ -4,27 +4,46 @@ import { Stethoscope, CheckCircle2, AlertCircle, ChevronRight, ChevronLeft } fro
 
 // ── Tipos ──────────────────────────────────────────────────────
 interface SaudeBucal {
-  respira_bem_nariz: string; dificuldade_abrir_boca: string
-  dor_articulacao_mandibula: string; range_dentes: string
-  mastiga_dois_lados: string; mastiga_bem: string
-  retencao_comida_dentes: string; habito_chiclete_bala: string
-  ingere_muito_doce: string; cafe_liquidos_escuros: string
-  come_fora_hora: string; escova_depois_comer: string
-  gengiva_inchada_dolorida: string; gengiva_sangra: string
-  instrucoes_higiene_bucal: string; vezes_escovacao_dia: string
-  duracao_escovacao: string; vezes_fio_dental_dia: string
-  usa_antisseptico_bucal: string; frequencia_dentista: string
-  ultimo_tratamento_odonto: string; tomou_anestesia_local: string
+  // Sim/Não (Q01-Q15, Q19, Q22)
+  respira_bem_nariz: string; respira_obs: string
+  dificuldade_boca: string; dificuldade_boca_obs: string
+  dor_mandibula: string; dor_mandibula_obs: string
+  range_dentes: string
+  mastiga_dois_lados: string
+  mastiga_bem: string
+  retencao_comida: string
+  chiclete_bala: string; chiclete_freq: string
+  muito_doce: string
+  cafe_escuros: string; cafe_freq: string
+  come_fora_hora: string
+  escova_depois: string
+  gengiva_inchada: string; gengiva_inchada_obs: string
+  gengiva_sangra: string
+  instrucoes_higiene: string
+  antisseptico: string; antisseptico_qual: string
+  anestesia_local: string; anestesia_obs: string
+  // Texto/quantitativo (Q16-Q18, Q20-Q21)
+  vezes_escovacao_dia: string
+  tempo_escovacao: string
+  vezes_fio_dental: string
+  freq_dentista: string
+  ultimo_tratamento: string
 }
 
 const EMPTY_SB: SaudeBucal = {
-  respira_bem_nariz: '', dificuldade_abrir_boca: '', dor_articulacao_mandibula: '',
-  range_dentes: '', mastiga_dois_lados: '', mastiga_bem: '', retencao_comida_dentes: '',
-  habito_chiclete_bala: '', ingere_muito_doce: '', cafe_liquidos_escuros: '',
-  come_fora_hora: '', escova_depois_comer: '', gengiva_inchada_dolorida: '',
-  gengiva_sangra: '', instrucoes_higiene_bucal: '', vezes_escovacao_dia: '',
-  duracao_escovacao: '', vezes_fio_dental_dia: '', usa_antisseptico_bucal: '',
-  frequencia_dentista: '', ultimo_tratamento_odonto: '', tomou_anestesia_local: '',
+  respira_bem_nariz: '', respira_obs: '',
+  dificuldade_boca: '', dificuldade_boca_obs: '',
+  dor_mandibula: '', dor_mandibula_obs: '',
+  range_dentes: '', mastiga_dois_lados: '', mastiga_bem: '',
+  retencao_comida: '', chiclete_bala: '', chiclete_freq: '',
+  muito_doce: '', cafe_escuros: '', cafe_freq: '',
+  come_fora_hora: '', escova_depois: '',
+  gengiva_inchada: '', gengiva_inchada_obs: '',
+  gengiva_sangra: '', instrucoes_higiene: '',
+  antisseptico: '', antisseptico_qual: '',
+  anestesia_local: '', anestesia_obs: '',
+  vezes_escovacao_dia: '', tempo_escovacao: '', vezes_fio_dental: '',
+  freq_dentista: '', ultimo_tratamento: '',
 }
 
 interface FormData {
@@ -107,6 +126,36 @@ function TextField({ label, value, onChange, placeholder }: {
       <label className="text-sm font-medium text-gray-800 block mb-1.5">{label}</label>
       <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder ?? ''}
         className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+    </div>
+  )
+}
+
+// Sim/Não baseado em string ('sim'|'nao') — para saúde bucal
+function StrYesNo({ label, value, onChange, showDetailOn = 'sim', detailPlaceholder, detailValue, onDetailChange }: {
+  label: string; value: string; onChange: (v: string) => void
+  showDetailOn?: 'sim' | 'nao'
+  detailPlaceholder?: string; detailValue?: string; onDetailChange?: (v: string) => void
+}) {
+  return (
+    <div className="py-3 border-b border-gray-100 last:border-0">
+      <p className="text-sm font-medium text-gray-800 mb-2">{label}</p>
+      <div className="flex gap-3">
+        {(['sim', 'nao'] as const).map(opt => (
+          <button key={opt} type="button" onClick={() => onChange(opt)}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
+              value === opt
+                ? opt === 'sim' ? 'border-green-500 bg-green-50 text-green-700' : 'border-red-300 bg-red-50 text-red-600'
+                : 'border-gray-200 text-gray-400'
+            }`}>
+            {opt === 'sim' ? 'Sim' : 'Não'}
+          </button>
+        ))}
+      </div>
+      {detailPlaceholder && value === showDetailOn && (
+        <textarea value={detailValue ?? ''} onChange={e => onDetailChange?.(e.target.value)}
+          placeholder={detailPlaceholder} rows={2}
+          className="mt-2 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+      )}
     </div>
   )
 }
@@ -319,34 +368,42 @@ export default function AnamnesesPublicaPage({ params }: { params: { token: stri
         {step === 3 && (
           <div>
             <h2 className="text-base font-semibold text-gray-900 mb-1">Saúde bucal e hábitos</h2>
-            <p className="text-xs text-gray-400 mb-4">Responda com Sim, Não ou detalhes quando necessário.</p>
+            <p className="text-xs text-gray-400 mb-4">Toque em Sim ou Não. Quando necessário, um campo de detalhe aparecerá.</p>
             <div className="bg-white rounded-2xl px-4">
-              {([
-                ['respira_bem_nariz', '01 · Respira bem pelo nariz?'],
-                ['dificuldade_abrir_boca', '02 · Sente dificuldade ou barulho ao abrir a boca?'],
-                ['dor_articulacao_mandibula', '03 · Sente dores na mandíbula, ouvido ou rosto?'],
-                ['range_dentes', '04 · Range os dentes?'],
-                ['mastiga_dois_lados', '05 · Mastiga dos dois lados da boca?'],
-                ['mastiga_bem', '06 · Consegue mastigar bem os alimentos?'],
-                ['retencao_comida_dentes', '07 · Sente comida presa entre os dentes?'],
-                ['habito_chiclete_bala', '08 · Tem hábito de mascar chiclete ou bala?'],
-                ['ingere_muito_doce', '09 · Come muito doce?'],
-                ['cafe_liquidos_escuros', '10 · Bebe café ou líquidos escuros com frequência?'],
-                ['come_fora_hora', '11 · Costuma comer fora de hora?'],
-                ['escova_depois_comer', '12 · Escova os dentes depois de comer?'],
-                ['gengiva_inchada_dolorida', '13 · Sua gengiva fica inchada ou dolorida?'],
-                ['gengiva_sangra', '14 · Gengiva sangra quando escova os dentes?'],
-                ['instrucoes_higiene_bucal', '15 · Já recebeu instruções de higiene bucal?'],
-                ['vezes_escovacao_dia', '16 · Quantas vezes escova os dentes por dia?'],
-                ['duracao_escovacao', '17 · Quanto tempo demora a escovação?'],
-                ['vezes_fio_dental_dia', '18 · Quantas vezes usa fio dental por dia?'],
-                ['usa_antisseptico_bucal', '19 · Usa enxaguante/antisséptico bucal?'],
-                ['frequencia_dentista', '20 · Com que frequência vai ao dentista?'],
-                ['ultimo_tratamento_odonto', '21 · Quando foi seu último tratamento odontológico?'],
-                ['tomou_anestesia_local', '22 · Já tomou anestesia local? Correu tudo bem?'],
-              ] as [keyof SaudeBucal, string][]).map(([key, label]) => (
-                <TextField key={key} label={label} value={sb[key]} onChange={v => setSB(key, v)} placeholder="Sua resposta..." />
-              ))}
+              <StrYesNo label="01 · Respira bem pelo nariz?" value={sb.respira_bem_nariz} onChange={v => setSB('respira_bem_nariz', v)}
+                showDetailOn="nao" detailPlaceholder="O que dificulta? Ex: desvio de septo, rinite..." detailValue={sb.respira_obs} onDetailChange={v => setSB('respira_obs', v)} />
+              <StrYesNo label="02 · Sente dificuldade ou barulho ao abrir a boca?" value={sb.dificuldade_boca} onChange={v => setSB('dificuldade_boca', v)}
+                detailPlaceholder="Descreva: Ex: estalo, trava, dor ao abrir..." detailValue={sb.dificuldade_boca_obs} onDetailChange={v => setSB('dificuldade_boca_obs', v)} />
+              <StrYesNo label="03 · Sente dores na articulação da mandíbula, ouvido ou rosto?" value={sb.dor_mandibula} onChange={v => setSB('dor_mandibula', v)}
+                detailPlaceholder="Onde e com que frequência?" detailValue={sb.dor_mandibula_obs} onDetailChange={v => setSB('dor_mandibula_obs', v)} />
+              <StrYesNo label="04 · Range os dentes (especialmente à noite)?" value={sb.range_dentes} onChange={v => setSB('range_dentes', v)} />
+              <StrYesNo label="05 · Mastiga dos dois lados da boca?" value={sb.mastiga_dois_lados} onChange={v => setSB('mastiga_dois_lados', v)} />
+              <StrYesNo label="06 · Consegue mastigar bem os alimentos?" value={sb.mastiga_bem} onChange={v => setSB('mastiga_bem', v)} />
+              <StrYesNo label="07 · Sente comida ficando presa entre os dentes?" value={sb.retencao_comida} onChange={v => setSB('retencao_comida', v)} />
+              <StrYesNo label="08 · Tem hábito de mascar chiclete ou bala?" value={sb.chiclete_bala} onChange={v => setSB('chiclete_bala', v)}
+                detailPlaceholder="Com que frequência? Ex: todos os dias, às vezes..." detailValue={sb.chiclete_freq} onDetailChange={v => setSB('chiclete_freq', v)} />
+              <StrYesNo label="09 · Come muito doce?" value={sb.muito_doce} onChange={v => setSB('muito_doce', v)} />
+              <StrYesNo label="10 · Bebe café ou líquidos escuros com muita frequência?" value={sb.cafe_escuros} onChange={v => setSB('cafe_escuros', v)}
+                detailPlaceholder="Quantas vezes ao dia? Ex: 3 cafés, 2 sucos..." detailValue={sb.cafe_freq} onDetailChange={v => setSB('cafe_freq', v)} />
+              <StrYesNo label="11 · Costuma comer fora de hora?" value={sb.come_fora_hora} onChange={v => setSB('come_fora_hora', v)} />
+              <StrYesNo label="12 · Escova os dentes depois de comer?" value={sb.escova_depois} onChange={v => setSB('escova_depois', v)} />
+              <StrYesNo label="13 · Sua gengiva fica inchada ou dolorida?" value={sb.gengiva_inchada} onChange={v => setSB('gengiva_inchada', v)}
+                detailPlaceholder="Em qual região? Com que frequência?" detailValue={sb.gengiva_inchada_obs} onDetailChange={v => setSB('gengiva_inchada_obs', v)} />
+              <StrYesNo label="14 · Sua gengiva sangra quando escova os dentes?" value={sb.gengiva_sangra} onChange={v => setSB('gengiva_sangra', v)} />
+              <StrYesNo label="15 · Já recebeu instruções de higiene bucal?" value={sb.instrucoes_higiene} onChange={v => setSB('instrucoes_higiene', v)} />
+
+              <TextField label="16 · Quantas vezes escova os dentes por dia?" value={sb.vezes_escovacao_dia} onChange={v => setSB('vezes_escovacao_dia', v)} placeholder="Ex: 3 vezes" />
+              <TextField label="17 · Quanto tempo dura cada escovação?" value={sb.tempo_escovacao} onChange={v => setSB('tempo_escovacao', v)} placeholder="Ex: 2 minutos" />
+              <TextField label="18 · Quantas vezes usa fio dental por dia?" value={sb.vezes_fio_dental} onChange={v => setSB('vezes_fio_dental', v)} placeholder="Ex: 1 vez, raramente..." />
+
+              <StrYesNo label="19 · Usa enxaguante ou antisséptico bucal?" value={sb.antisseptico} onChange={v => setSB('antisseptico', v)}
+                detailPlaceholder="Qual produto? Ex: Listerine, Periogard..." detailValue={sb.antisseptico_qual} onDetailChange={v => setSB('antisseptico_qual', v)} />
+
+              <TextField label="20 · Com que frequência vai ao dentista?" value={sb.freq_dentista} onChange={v => setSB('freq_dentista', v)} placeholder="Ex: a cada 6 meses, 1 vez ao ano..." />
+              <TextField label="21 · Quando foi seu último tratamento odontológico?" value={sb.ultimo_tratamento} onChange={v => setSB('ultimo_tratamento', v)} placeholder="Ex: há 6 meses, em 2023..." />
+
+              <StrYesNo label="22 · Já tomou anestesia local para tratamento dentário?" value={sb.anestesia_local} onChange={v => setSB('anestesia_local', v)}
+                detailPlaceholder="Correu tudo bem? Teve alguma reação?" detailValue={sb.anestesia_obs} onDetailChange={v => setSB('anestesia_obs', v)} />
             </div>
           </div>
         )}

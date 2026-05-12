@@ -5,28 +5,30 @@ import { supabase } from '@/lib/supabase'
 
 // ── Tipos ──────────────────────────────────────────────────────
 export interface SaudeBucal {
-  respira_bem_nariz: string
-  dificuldade_abrir_boca: string
-  dor_articulacao_mandibula: string
+  // Sim/Não (Q01-Q15, Q19, Q22)
+  respira_bem_nariz: string; respira_obs: string
+  dificuldade_boca: string; dificuldade_boca_obs: string
+  dor_mandibula: string; dor_mandibula_obs: string
   range_dentes: string
   mastiga_dois_lados: string
   mastiga_bem: string
-  retencao_comida_dentes: string
-  habito_chiclete_bala: string
-  ingere_muito_doce: string
-  cafe_liquidos_escuros: string
+  retencao_comida: string
+  chiclete_bala: string; chiclete_freq: string
+  muito_doce: string
+  cafe_escuros: string; cafe_freq: string
   come_fora_hora: string
-  escova_depois_comer: string
-  gengiva_inchada_dolorida: string
+  escova_depois: string
+  gengiva_inchada: string; gengiva_inchada_obs: string
   gengiva_sangra: string
-  instrucoes_higiene_bucal: string
+  instrucoes_higiene: string
+  antisseptico: string; antisseptico_qual: string
+  anestesia_local: string; anestesia_obs: string
+  // Texto/quantitativo (Q16-Q18, Q20-Q21)
   vezes_escovacao_dia: string
-  duracao_escovacao: string
-  vezes_fio_dental_dia: string
-  usa_antisseptico_bucal: string
-  frequencia_dentista: string
-  ultimo_tratamento_odonto: string
-  tomou_anestesia_local: string
+  tempo_escovacao: string
+  vezes_fio_dental: string
+  freq_dentista: string
+  ultimo_tratamento: string
 }
 
 export interface AnamnesesFormData {
@@ -88,13 +90,19 @@ export interface AnamnesesFormData {
 }
 
 const EMPTY_SAUDE_BUCAL: SaudeBucal = {
-  respira_bem_nariz: '', dificuldade_abrir_boca: '', dor_articulacao_mandibula: '',
-  range_dentes: '', mastiga_dois_lados: '', mastiga_bem: '', retencao_comida_dentes: '',
-  habito_chiclete_bala: '', ingere_muito_doce: '', cafe_liquidos_escuros: '',
-  come_fora_hora: '', escova_depois_comer: '', gengiva_inchada_dolorida: '',
-  gengiva_sangra: '', instrucoes_higiene_bucal: '', vezes_escovacao_dia: '',
-  duracao_escovacao: '', vezes_fio_dental_dia: '', usa_antisseptico_bucal: '',
-  frequencia_dentista: '', ultimo_tratamento_odonto: '', tomou_anestesia_local: '',
+  respira_bem_nariz: '', respira_obs: '',
+  dificuldade_boca: '', dificuldade_boca_obs: '',
+  dor_mandibula: '', dor_mandibula_obs: '',
+  range_dentes: '', mastiga_dois_lados: '', mastiga_bem: '',
+  retencao_comida: '', chiclete_bala: '', chiclete_freq: '',
+  muito_doce: '', cafe_escuros: '', cafe_freq: '',
+  come_fora_hora: '', escova_depois: '',
+  gengiva_inchada: '', gengiva_inchada_obs: '',
+  gengiva_sangra: '', instrucoes_higiene: '',
+  antisseptico: '', antisseptico_qual: '',
+  anestesia_local: '', anestesia_obs: '',
+  vezes_escovacao_dia: '', tempo_escovacao: '', vezes_fio_dental: '',
+  freq_dentista: '', ultimo_tratamento: '',
 }
 
 const EMPTY: AnamnesesFormData = {
@@ -160,17 +168,47 @@ function TextInput({ label, value, onChange, placeholder }: {
   )
 }
 
-function BucalRow({ num, label, value, onChange }: {
+function BucalYesNo({ num, label, value, onChange, showDetailOn = 'sim', detailPlaceholder, detailValue, onDetailChange }: {
   num: string; label: string; value: string; onChange: (v: string) => void
+  showDetailOn?: 'sim' | 'nao'
+  detailPlaceholder?: string; detailValue?: string; onDetailChange?: (v: string) => void
 }) {
   return (
-    <div className="flex items-start gap-2">
-      <span className="text-gray-400 font-mono text-xs w-6 shrink-0 mt-2">{num}</span>
-      <div className="flex-1">
-        <label className="label text-xs">{label}</label>
-        <input value={value} onChange={e => onChange(e.target.value)}
-          className="input text-sm py-1.5" placeholder="Resposta..." />
+    <div className="space-y-1.5">
+      <p className="text-xs text-gray-600">
+        <span className="text-gray-400 font-mono mr-1">{num}</span>{label}
+      </p>
+      <div className="flex gap-2">
+        {(['sim', 'nao'] as const).map(opt => (
+          <button key={opt} type="button" onClick={() => onChange(opt)}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border-2 transition-all ${
+              value === opt
+                ? opt === 'sim' ? 'border-green-500 bg-green-50 text-green-700' : 'border-red-300 bg-red-50 text-red-600'
+                : 'border-gray-200 text-gray-400 hover:border-gray-300'
+            }`}>
+            {opt === 'sim' ? 'Sim' : 'Não'}
+          </button>
+        ))}
       </div>
+      {detailPlaceholder && value === showDetailOn && (
+        <input value={detailValue ?? ''} onChange={e => onDetailChange?.(e.target.value)}
+          placeholder={detailPlaceholder}
+          className="input text-xs py-1.5" />
+      )}
+    </div>
+  )
+}
+
+function BucalText({ num, label, value, onChange, placeholder }: {
+  num: string; label: string; value: string; onChange: (v: string) => void; placeholder?: string
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-xs text-gray-600">
+        <span className="text-gray-400 font-mono mr-1">{num}</span>{label}
+      </label>
+      <input value={value} onChange={e => onChange(e.target.value)}
+        className="input text-xs py-1.5" placeholder={placeholder ?? 'Resposta...'} />
     </div>
   )
 }
@@ -343,31 +381,37 @@ export function AnamnesesModal({ pacienteId, pacienteNome, initial, onClose, onS
 
           {/* 4. Saúde bucal (PDF segunda seção) */}
           <SectionTitle num="B">Saúde bucal e hábitos</SectionTitle>
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <BucalRow num="01" label="Respira bem pelo nariz?" value={sb.respira_bem_nariz} onChange={v => setBucal('respira_bem_nariz', v)} />
-              <BucalRow num="02" label="Dificuldade ou barulho ao abrir a boca?" value={sb.dificuldade_abrir_boca} onChange={v => setBucal('dificuldade_abrir_boca', v)} />
-              <BucalRow num="03" label="Dor na articulação da mandíbula/ouvido/face?" value={sb.dor_articulacao_mandibula} onChange={v => setBucal('dor_articulacao_mandibula', v)} />
-              <BucalRow num="04" label="Range os dentes?" value={sb.range_dentes} onChange={v => setBucal('range_dentes', v)} />
-              <BucalRow num="05" label="Mastiga dos dois lados da boca?" value={sb.mastiga_dois_lados} onChange={v => setBucal('mastiga_dois_lados', v)} />
-              <BucalRow num="06" label="Consegue mastigar bem os alimentos?" value={sb.mastiga_bem} onChange={v => setBucal('mastiga_bem', v)} />
-              <BucalRow num="07" label="Sente retenção de comida entre os dentes?" value={sb.retencao_comida_dentes} onChange={v => setBucal('retencao_comida_dentes', v)} />
-              <BucalRow num="08" label="Hábito de mascar chiclete ou bala?" value={sb.habito_chiclete_bala} onChange={v => setBucal('habito_chiclete_bala', v)} />
-              <BucalRow num="09" label="Ingere muito doce?" value={sb.ingere_muito_doce} onChange={v => setBucal('ingere_muito_doce', v)} />
-              <BucalRow num="10" label="Toma café ou líquidos escuros com frequência?" value={sb.cafe_liquidos_escuros} onChange={v => setBucal('cafe_liquidos_escuros', v)} />
-              <BucalRow num="11" label="Costuma comer fora de hora?" value={sb.come_fora_hora} onChange={v => setBucal('come_fora_hora', v)} />
-              <BucalRow num="12" label="Escova os dentes depois de comer?" value={sb.escova_depois_comer} onChange={v => setBucal('escova_depois_comer', v)} />
-              <BucalRow num="13" label="Gengiva inchada ou dolorida?" value={sb.gengiva_inchada_dolorida} onChange={v => setBucal('gengiva_inchada_dolorida', v)} />
-              <BucalRow num="14" label="Gengiva sangra ao escovar?" value={sb.gengiva_sangra} onChange={v => setBucal('gengiva_sangra', v)} />
-              <BucalRow num="15" label="Já teve instruções de higiene bucal?" value={sb.instrucoes_higiene_bucal} onChange={v => setBucal('instrucoes_higiene_bucal', v)} />
-              <BucalRow num="16" label="Quantas vezes escova os dentes por dia?" value={sb.vezes_escovacao_dia} onChange={v => setBucal('vezes_escovacao_dia', v)} />
-              <BucalRow num="17" label="Quanto tempo dura a escovação?" value={sb.duracao_escovacao} onChange={v => setBucal('duracao_escovacao', v)} />
-              <BucalRow num="18" label="Quantas vezes usa fio dental por dia?" value={sb.vezes_fio_dental_dia} onChange={v => setBucal('vezes_fio_dental_dia', v)} />
-              <BucalRow num="19" label="Faz gargarejo com antisséptico bucal?" value={sb.usa_antisseptico_bucal} onChange={v => setBucal('usa_antisseptico_bucal', v)} />
-              <BucalRow num="20" label="Com que frequência vai ao dentista?" value={sb.frequencia_dentista} onChange={v => setBucal('frequencia_dentista', v)} />
-              <BucalRow num="21" label="Quando foi seu último tratamento odontológico?" value={sb.ultimo_tratamento_odonto} onChange={v => setBucal('ultimo_tratamento_odonto', v)} />
-              <BucalRow num="22" label="Já tomou anestesia local? Correu tudo bem?" value={sb.tomou_anestesia_local} onChange={v => setBucal('tomou_anestesia_local', v)} />
-            </div>
+          <div className="grid grid-cols-2 gap-3">
+            <BucalYesNo num="01" label="Respira bem pelo nariz?" value={sb.respira_bem_nariz} onChange={v => setBucal('respira_bem_nariz', v)}
+              showDetailOn="nao" detailPlaceholder="O que dificulta?" detailValue={sb.respira_obs} onDetailChange={v => setBucal('respira_obs', v)} />
+            <BucalYesNo num="02" label="Dificuldade/barulho ao abrir a boca?" value={sb.dificuldade_boca} onChange={v => setBucal('dificuldade_boca', v)}
+              detailPlaceholder="Descreva..." detailValue={sb.dificuldade_boca_obs} onDetailChange={v => setBucal('dificuldade_boca_obs', v)} />
+            <BucalYesNo num="03" label="Dor na articulação da mandíbula/ouvido?" value={sb.dor_mandibula} onChange={v => setBucal('dor_mandibula', v)}
+              detailPlaceholder="Onde e com que frequência?" detailValue={sb.dor_mandibula_obs} onDetailChange={v => setBucal('dor_mandibula_obs', v)} />
+            <BucalYesNo num="04" label="Range os dentes?" value={sb.range_dentes} onChange={v => setBucal('range_dentes', v)} />
+            <BucalYesNo num="05" label="Mastiga dos dois lados?" value={sb.mastiga_dois_lados} onChange={v => setBucal('mastiga_dois_lados', v)} />
+            <BucalYesNo num="06" label="Mastiga bem os alimentos?" value={sb.mastiga_bem} onChange={v => setBucal('mastiga_bem', v)} />
+            <BucalYesNo num="07" label="Retenção de comida entre dentes?" value={sb.retencao_comida} onChange={v => setBucal('retencao_comida', v)} />
+            <BucalYesNo num="08" label="Hábito de mascar chiclete/bala?" value={sb.chiclete_bala} onChange={v => setBucal('chiclete_bala', v)}
+              detailPlaceholder="Com que frequência?" detailValue={sb.chiclete_freq} onDetailChange={v => setBucal('chiclete_freq', v)} />
+            <BucalYesNo num="09" label="Ingere muito doce?" value={sb.muito_doce} onChange={v => setBucal('muito_doce', v)} />
+            <BucalYesNo num="10" label="Café/líquidos escuros frequentemente?" value={sb.cafe_escuros} onChange={v => setBucal('cafe_escuros', v)}
+              detailPlaceholder="Quantas vezes ao dia?" detailValue={sb.cafe_freq} onDetailChange={v => setBucal('cafe_freq', v)} />
+            <BucalYesNo num="11" label="Costuma comer fora de hora?" value={sb.come_fora_hora} onChange={v => setBucal('come_fora_hora', v)} />
+            <BucalYesNo num="12" label="Escova os dentes depois de comer?" value={sb.escova_depois} onChange={v => setBucal('escova_depois', v)} />
+            <BucalYesNo num="13" label="Gengiva inchada ou dolorida?" value={sb.gengiva_inchada} onChange={v => setBucal('gengiva_inchada', v)}
+              detailPlaceholder="Em qual região? Frequência?" detailValue={sb.gengiva_inchada_obs} onDetailChange={v => setBucal('gengiva_inchada_obs', v)} />
+            <BucalYesNo num="14" label="Gengiva sangra ao escovar?" value={sb.gengiva_sangra} onChange={v => setBucal('gengiva_sangra', v)} />
+            <BucalYesNo num="15" label="Já teve instruções de higiene bucal?" value={sb.instrucoes_higiene} onChange={v => setBucal('instrucoes_higiene', v)} />
+            <BucalText num="16" label="Quantas vezes escova/dia?" value={sb.vezes_escovacao_dia} onChange={v => setBucal('vezes_escovacao_dia', v)} placeholder="Ex: 3 vezes" />
+            <BucalText num="17" label="Duração da escovação?" value={sb.tempo_escovacao} onChange={v => setBucal('tempo_escovacao', v)} placeholder="Ex: 2 minutos" />
+            <BucalText num="18" label="Vezes que usa fio dental/dia?" value={sb.vezes_fio_dental} onChange={v => setBucal('vezes_fio_dental', v)} placeholder="Ex: 1 vez" />
+            <BucalYesNo num="19" label="Usa antisséptico/enxaguante bucal?" value={sb.antisseptico} onChange={v => setBucal('antisseptico', v)}
+              detailPlaceholder="Qual produto?" detailValue={sb.antisseptico_qual} onDetailChange={v => setBucal('antisseptico_qual', v)} />
+            <BucalText num="20" label="Frequência ao dentista?" value={sb.freq_dentista} onChange={v => setBucal('freq_dentista', v)} placeholder="Ex: 6 em 6 meses" />
+            <BucalText num="21" label="Último tratamento odontológico?" value={sb.ultimo_tratamento} onChange={v => setBucal('ultimo_tratamento', v)} placeholder="Ex: há 6 meses" />
+            <BucalYesNo num="22" label="Já tomou anestesia local?" value={sb.anestesia_local} onChange={v => setBucal('anestesia_local', v)}
+              detailPlaceholder="Correu bem? Alguma reação?" detailValue={sb.anestesia_obs} onDetailChange={v => setBucal('anestesia_obs', v)} />
           </div>
 
           {/* 5. Observações */}

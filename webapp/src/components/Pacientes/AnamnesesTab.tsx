@@ -106,31 +106,31 @@ function Viewer({ a, onClose, onEdit }: { a: Anamnese; onClose: () => void; onEd
 
           {Object.values(sb).some(v => v) && <>
             <Sec title="Saúde bucal e hábitos" />
-            {[
-              ['01 Respira bem pelo nariz?', sb.respira_bem_nariz],
-              ['02 Dificuldade/barulho ao abrir a boca?', sb.dificuldade_abrir_boca],
-              ['03 Dor na articulação da mandíbula?', sb.dor_articulacao_mandibula],
+            {([
+              ['01 Respira bem pelo nariz?', sb.respira_bem_nariz, sb.respira_obs],
+              ['02 Dificuldade/barulho ao abrir a boca?', sb.dificuldade_boca, sb.dificuldade_boca_obs],
+              ['03 Dor na articulação da mandíbula?', sb.dor_mandibula, sb.dor_mandibula_obs],
               ['04 Range os dentes?', sb.range_dentes],
               ['05 Mastiga dos dois lados?', sb.mastiga_dois_lados],
               ['06 Mastiga bem os alimentos?', sb.mastiga_bem],
-              ['07 Retenção de comida entre dentes?', sb.retencao_comida_dentes],
-              ['08 Hábito de mascar chiclete/bala?', sb.habito_chiclete_bala],
-              ['09 Ingere muito doce?', sb.ingere_muito_doce],
-              ['10 Café/líquidos escuros frequentemente?', sb.cafe_liquidos_escuros],
+              ['07 Retenção de comida entre dentes?', sb.retencao_comida],
+              ['08 Hábito de mascar chiclete/bala?', sb.chiclete_bala, sb.chiclete_freq],
+              ['09 Ingere muito doce?', sb.muito_doce],
+              ['10 Café/líquidos escuros frequentemente?', sb.cafe_escuros, sb.cafe_freq],
               ['11 Come fora de hora?', sb.come_fora_hora],
-              ['12 Escova os dentes depois de comer?', sb.escova_depois_comer],
-              ['13 Gengiva inchada ou dolorida?', sb.gengiva_inchada_dolorida],
+              ['12 Escova os dentes depois de comer?', sb.escova_depois],
+              ['13 Gengiva inchada ou dolorida?', sb.gengiva_inchada, sb.gengiva_inchada_obs],
               ['14 Gengiva sangra ao escovar?', sb.gengiva_sangra],
-              ['15 Teve instruções de higiene bucal?', sb.instrucoes_higiene_bucal],
+              ['15 Teve instruções de higiene bucal?', sb.instrucoes_higiene],
               ['16 Vezes que escova/dia', sb.vezes_escovacao_dia],
-              ['17 Duração da escovação', sb.duracao_escovacao],
-              ['18 Vezes que usa fio dental/dia', sb.vezes_fio_dental_dia],
-              ['19 Usa antisséptico bucal?', sb.usa_antisseptico_bucal],
-              ['20 Frequência ao dentista', sb.frequencia_dentista],
-              ['21 Último tratamento odontológico', sb.ultimo_tratamento_odonto],
-              ['22 Tomou anestesia local? Correu bem?', sb.tomou_anestesia_local],
-            ].filter(([, v]) => v).map(([label, value]) => (
-              <Row key={label as string} label={label as string} value={value as string} />
+              ['17 Duração da escovação', sb.tempo_escovacao],
+              ['18 Vezes que usa fio dental/dia', sb.vezes_fio_dental],
+              ['19 Usa antisséptico bucal?', sb.antisseptico, sb.antisseptico_qual],
+              ['20 Frequência ao dentista', sb.freq_dentista],
+              ['21 Último tratamento odontológico', sb.ultimo_tratamento],
+              ['22 Tomou anestesia local?', sb.anestesia_local, sb.anestesia_obs],
+            ] as [string, string, string?][]).filter(([, v]) => v).map(([label, value, detail]) => (
+              <Row key={label} label={label} value={detail ? `${value}${detail ? ` — ${detail}` : ''}` : value} />
             ))}
           </>}
 
