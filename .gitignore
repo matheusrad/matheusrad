@@ -18,3 +18,12 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Next.js build output
+webapp/.next/
+webapp/out/
+webapp/.vercel/
+
+# Node modules
+node_modules/
+webapp/node_modules/
