@@ -12,6 +12,7 @@ import type { Paciente, Consulta, Documento } from '@/types/database'
 import { format, parseISO, differenceInYears, formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Odontograma, type ToothTratamento } from '@/components/Odontograma/Odontograma'
+import { AnamnesesTab } from './AnamnesesTab'
 import clsx from 'clsx'
 
 type Tab = 'visao-geral' | 'anamneses' | 'orcamentos' | 'tratamentos' | 'pagamentos' | 'evolucoes' | 'documentos' | 'arquivos'
@@ -304,32 +305,7 @@ export function PacienteDetalhePage({ id }: { id: string }) {
 
           {/* ANAMNESES */}
           {tab === 'anamneses' && (
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-semibold text-gray-800">Anamneses</h2>
-                <button className="btn-primary">
-                  <Clipboard size={14} /> Preencher anamnese
-                </button>
-              </div>
-              {paciente.link_anamnese_pdf ? (
-                <div className="border border-gray-100 rounded-xl p-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">Anamnese inicial</p>
-                    <p className="text-xs text-gray-500 mt-0.5">PDF gerado pelo assistente IA</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <a href={paciente.link_anamnese_pdf} target="_blank" rel="noopener noreferrer" className="btn-secondary text-xs py-1.5 px-3">
-                      <Download size={12} /> Baixar PDF
-                    </a>
-                  </div>
-                </div>
-              ) : (
-                <EmptyState
-                  icon={Clipboard}
-                  title="O paciente não tem anamneses preenchidas. Vamos criar a primeira?"
-                />
-              )}
-            </div>
+            <AnamnesesTab pacienteId={paciente.id} pacienteNome={paciente.nome} />
           )}
 
           {/* ORÇAMENTOS */}

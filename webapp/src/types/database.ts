@@ -225,12 +225,43 @@ export interface Database {
         Row: {
           id: string
           paciente_id: string | null
+          paciente_nome: string
+          motivo_consulta: string | null
+          tem_dor_atual: boolean
+          local_dor: string | null
+          intensidade_dor: number | null
+          tempo_problema: string | null
+          ultima_consulta_dentista: string | null
+          usa_medicamento: boolean
+          qual_medicamento: string | null
+          tem_alergia: boolean
+          qual_alergia: string | null
+          tem_doenca_sistemica: boolean
+          qual_doenca: string | null
+          hipertensao: boolean
+          diabetes: boolean
+          problema_cardiaco: boolean
+          doenca_renal: boolean
+          doenca_hepatica: boolean
+          disturbio_coagulacao: boolean
+          osteoporose: boolean
+          hiv_imunossuprimido: boolean
+          gestante: boolean
+          periodo_gestacao: string | null
+          fuma: boolean
+          consome_alcool: boolean
+          bruxismo: boolean
+          ja_fez_cirurgia: boolean
+          sangramento_pos_procedimento: boolean
+          medo_tratamento: boolean
+          usa_protese: boolean
+          observacoes: string | null
+          html_anamnese: string | null
           link_pdf: string | null
-          html_gerado: string | null
-          dados_formulario: Record<string, unknown> | null
+          data_preenchimento: string
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['anamneses']['Row'], 'id' | 'created_at'>
+        Insert: Omit<Database['public']['Tables']['anamneses']['Row'], 'id' | 'created_at' | 'data_preenchimento'>
         Update: Partial<Database['public']['Tables']['anamneses']['Insert']>
       }
     }
