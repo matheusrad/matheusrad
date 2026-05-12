@@ -305,7 +305,7 @@ export function PacienteDetalhePage({ id }: { id: string }) {
 
           {/* ANAMNESES */}
           {tab === 'anamneses' && (
-            <AnamnesesTab pacienteId={paciente.id} pacienteNome={paciente.nome} />
+            <AnamnesesTab pacienteId={paciente.id} pacienteNome={paciente.nome} pacienteTelefone={paciente.telefone} />
           )}
 
           {/* ORÇAMENTOS */}

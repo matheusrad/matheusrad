@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Clipboard, Plus, Eye, Pencil, CheckCircle2, XCircle } from 'lucide-react'
+import { Clipboard, Plus, Eye, Pencil, CheckCircle2, XCircle, Send, Copy, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -145,12 +145,89 @@ function Viewer({ a, onClose, onEdit }: { a: Anamnese; onClose: () => void; onEd
 }
 
 // ── Tab principal ─────────────────────────────────────────────
-interface Props { pacienteId: string; pacienteNome: string }
+// ── Gerador de link ───────────────────────────────────────────
+function LinkModal({ pacienteId, pacienteNome, pacienteTelefone, onClose }: {
+  pacienteId: string; pacienteNome: string; pacienteTelefone: string; onClose: () => void
+}) {
+  const [link, setLink]       = useState('')
+  const [loading, setLoading] = useState(false)
+  const [copied, setCopied]   = useState(false)
 
-export function AnamnesesTab({ pacienteId, pacienteNome }: Props) {
+  async function gerarLink() {
+    setLoading(true)
+    const token = crypto.randomUUID()
+    const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString()
+    const { error } = await supabase.from('anamnese_tokens').insert({
+      paciente_id: pacienteId, token, expires_at: expiresAt,
+    })
+    if (!error) {
+      const url = `${window.location.origin}/anamnese/${token}`
+      setLink(url)
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => { gerarLink() }, [])
+
+  function copiarLink() {
+    navigator.clipboard.writeText(link)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  function enviarWhatsApp() {
+    const tel = pacienteTelefone.replace(/\D/g, '')
+    const msg = encodeURIComponent(
+      `Olá, ${pacienteNome}! 😊\n\nPara agilizar sua consulta, pedimos que preencha sua ficha de anamnese pelo link abaixo. É rápido e pode fazer pelo celular:\n\n${link}\n\nO link é válido por 72 horas. Qualquer dúvida, estamos à disposição! 🦷`
+    )
+    window.open(`https://wa.me/55${tel}?text=${msg}`, '_blank')
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl p-6">
+        <h2 className="font-semibold text-gray-900 mb-1">Enviar anamnese por WhatsApp</h2>
+        <p className="text-sm text-gray-500 mb-4">Um link único será gerado para {pacienteNome} preencher no celular. Válido por 72 horas.</p>
+
+        {loading ? (
+          <div className="flex justify-center py-6">
+            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : link ? (
+          <div className="space-y-3">
+            <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-2">
+              <p className="text-xs text-gray-600 flex-1 break-all font-mono">{link}</p>
+              <button onClick={copiarLink} className="shrink-0 p-1.5 text-gray-400 hover:text-gray-600 rounded">
+                {copied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+              </button>
+            </div>
+            <button onClick={enviarWhatsApp}
+              className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors">
+              <Send size={16} /> Abrir WhatsApp e enviar
+            </button>
+            <button onClick={copiarLink}
+              className="w-full border border-gray-200 text-gray-700 font-medium py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors text-sm">
+              {copied ? <><Check size={14} className="text-green-500" /> Copiado!</> : <><Copy size={14} /> Copiar link</>}
+            </button>
+          </div>
+        ) : (
+          <p className="text-sm text-red-500">Erro ao gerar o link. Tente novamente.</p>
+        )}
+
+        <button onClick={onClose} className="mt-4 w-full text-sm text-gray-400 hover:text-gray-600 py-1">Fechar</button>
+      </div>
+    </div>
+  )
+}
+
+// ── Tab principal ─────────────────────────────────────────────
+interface Props { pacienteId: string; pacienteNome: string; pacienteTelefone?: string }
+
+export function AnamnesesTab({ pacienteId, pacienteNome, pacienteTelefone = '' }: Props) {
   const [anamneses, setAnamneses] = useState<Anamnese[]>([])
   const [loading, setLoading]     = useState(true)
   const [showForm, setShowForm]   = useState(false)
+  const [showLink, setShowLink]   = useState(false)
   const [viewing, setViewing]     = useState<Anamnese | null>(null)
   const [editing, setEditing]     = useState<Anamnese | null>(null)
 
@@ -177,9 +254,14 @@ export function AnamnesesTab({ pacienteId, pacienteNome }: Props) {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="font-semibold text-gray-800">Anamneses</h2>
-        <button onClick={() => setShowForm(true)} className="btn-primary">
-          <Plus size={14} /> Nova anamnese
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowLink(true)} className="btn-secondary">
+            <Send size={14} /> Enviar por WhatsApp
+          </button>
+          <button onClick={() => setShowForm(true)} className="btn-primary">
+            <Plus size={14} /> Preencher aqui
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -233,6 +315,10 @@ export function AnamnesesTab({ pacienteId, pacienteNome }: Props) {
       {viewing && !editing && (
         <Viewer a={viewing} onClose={() => setViewing(null)}
           onEdit={() => { setEditing(viewing); setViewing(null) }} />
+      )}
+      {showLink && (
+        <LinkModal pacienteId={pacienteId} pacienteNome={pacienteNome}
+          pacienteTelefone={pacienteTelefone} onClose={() => setShowLink(false)} />
       )}
     </div>
   )
