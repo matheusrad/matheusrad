@@ -1,21 +1,23 @@
 #!/usr/bin/env node
 /**
- * setup-db.mjs
- * Executa schema.sql e rls-policies.sql no Supabase.
- * Uso: npm run db:setup
- * Requer DATABASE_URL no .env.local
+ * setup-db.mjs — executa schema.sql e rls-policies.sql no Supabase.
+ *
+ * Uso (na pasta raiz do projeto):
+ *   node scripts/setup-db.mjs
+ *
+ * Requer DATABASE_URL no arquivo scripts/.env
+ * NUNCA coloque este arquivo .env no webapp — ele contém a senha do superuser.
  */
 
 import { readFileSync } from 'fs'
-import { createConnection } from 'net'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-// ── Carrega variáveis de ambiente de .env.local ──────────────
+// ── Carrega scripts/.env ──────────────────────────────────────
 function loadEnv() {
-  const envPath = resolve(__dirname, '../.env.local')
+  const envPath = resolve(__dirname, '.env')
   try {
     const content = readFileSync(envPath, 'utf-8')
     for (const line of content.split('\n')) {
@@ -28,7 +30,8 @@ function loadEnv() {
       if (!process.env[key]) process.env[key] = val
     }
   } catch {
-    console.error('❌  Arquivo .env.local não encontrado em webapp/')
+    console.error('❌  Arquivo scripts/.env não encontrado.')
+    console.error('    Copie scripts/.env.exemplo para scripts/.env e preencha DATABASE_URL.')
     process.exit(1)
   }
 }
@@ -39,34 +42,36 @@ const DATABASE_URL = process.env.DATABASE_URL
 
 if (!DATABASE_URL) {
   console.error(`
-❌  Variável DATABASE_URL não encontrada no .env.local
+❌  Variável DATABASE_URL não encontrada em scripts/.env
 
 Adicione a connection string do Supabase:
   DATABASE_URL=postgresql://postgres:[SENHA]@db.[ref].supabase.co:5432/postgres
 
 Encontre em: Supabase → Settings → Database → Connection string → URI
+
+⚠️  ATENÇÃO: nunca coloque DATABASE_URL no webapp/.env.local
+    Esta credencial tem acesso total ao banco (superuser).
 `)
   process.exit(1)
 }
 
-// ── Importa pg dinamicamente ──────────────────────────────────
-let pg
+// ── Importa pg ────────────────────────────────────────────────
+let Client
 try {
-  pg = await import('pg')
+  const pg = await import('pg')
+  Client = pg.default.Client
 } catch {
   console.error(`
-❌  Pacote 'pg' não instalado. Rode:
-  npm install --save-dev pg
+❌  Pacote 'pg' não instalado. Rode na raiz do projeto:
+    npm install pg
 `)
   process.exit(1)
 }
 
-const { default: { Client } } = pg
-
-// ── Arquivos SQL a executar (ordem importa) ───────────────────
+// ── Arquivos SQL (ordem importa) ──────────────────────────────
 const SQL_FILES = [
-  resolve(__dirname, '../../database/schema.sql'),
-  resolve(__dirname, '../../database/rls-policies.sql'),
+  resolve(__dirname, '../database/schema.sql'),
+  resolve(__dirname, '../database/rls-policies.sql'),
 ]
 
 // ── Executa ───────────────────────────────────────────────────
@@ -80,28 +85,19 @@ try {
   for (const filePath of SQL_FILES) {
     const fileName = filePath.split(/[\\/]/).pop()
     console.log(`📄  Executando ${fileName}...`)
-
-    let sql
-    try {
-      sql = readFileSync(filePath, 'utf-8')
-    } catch {
-      console.error(`❌  Arquivo não encontrado: ${filePath}`)
-      process.exit(1)
-    }
-
+    const sql = readFileSync(filePath, 'utf-8')
     await client.query(sql)
-    console.log(`✅  ${fileName} executado com sucesso!\n`)
+    console.log(`✅  ${fileName} concluído!\n`)
   }
 
-  console.log('🎉  Banco de dados configurado! Tabelas criadas:')
   const { rows } = await client.query(
     `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`
   )
+  console.log('🎉  Banco configurado! Tabelas criadas:')
   rows.forEach(r => console.log(`   • ${r.tablename}`))
 
 } catch (err) {
-  console.error('\n❌  Erro ao executar SQL:')
-  console.error(err.message)
+  console.error('\n❌  Erro ao executar SQL:', err.message)
   process.exit(1)
 } finally {
   await client.end()
