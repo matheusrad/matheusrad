@@ -5,8 +5,11 @@
  * Uso (na pasta raiz do projeto):
  *   node scripts/setup-db.mjs
  *
- * Requer DATABASE_URL no arquivo scripts/.env
- * NUNCA coloque este arquivo .env no webapp — ele contém a senha do superuser.
+ * Requer em scripts/.env:
+ *   SUPABASE_URL=https://xxxxx.supabase.co
+ *   SUPABASE_SECRET_KEY=sb_secret_...   (chave secreta do projeto)
+ *   SUPABASE_PROJECT_REF=xxxxx          (ID do projeto — ex: aceotmesirvtdtlgeucm)
+ *   SUPABASE_ACCESS_TOKEN=sbp_...       (token pessoal de acesso)
  */
 
 import { readFileSync } from 'fs'
@@ -31,74 +34,81 @@ function loadEnv() {
     }
   } catch {
     console.error('❌  Arquivo scripts/.env não encontrado.')
-    console.error('    Copie scripts/.env.exemplo para scripts/.env e preencha DATABASE_URL.')
+    console.error('    Copie scripts/.env.exemplo para scripts/.env e preencha os valores.')
     process.exit(1)
   }
 }
 
 loadEnv()
 
-const DATABASE_URL = process.env.DATABASE_URL
+const PROJECT_REF     = process.env.SUPABASE_PROJECT_REF
+const ACCESS_TOKEN    = process.env.SUPABASE_ACCESS_TOKEN
 
-if (!DATABASE_URL) {
+if (!PROJECT_REF || !ACCESS_TOKEN) {
   console.error(`
-❌  Variável DATABASE_URL não encontrada em scripts/.env
+❌  Variáveis obrigatórias não encontradas em scripts/.env
 
-Adicione a connection string do Supabase:
-  DATABASE_URL=postgresql://postgres:[SENHA]@db.[ref].supabase.co:5432/postgres
+Adicione:
+  SUPABASE_PROJECT_REF=aceotmesirvtdtlgeucm   (ID do projeto — está em Configurações > Em geral)
+  SUPABASE_ACCESS_TOKEN=sbp_...               (token pessoal)
 
-Encontre em: Supabase → Settings → Database → Connection string → URI
-
-⚠️  ATENÇÃO: nunca coloque DATABASE_URL no webapp/.env.local
-    Esta credencial tem acesso total ao banco (superuser).
+Como gerar o token pessoal:
+  1. Acesse https://supabase.com/dashboard/account/tokens
+  2. Clique em "Generate new token"
+  3. Dê um nome (ex: setup-db) e copie o token gerado
 `)
   process.exit(1)
 }
 
-// ── Importa pg ────────────────────────────────────────────────
-let Client
-try {
-  const pg = await import('pg')
-  Client = pg.default.Client
-} catch {
-  console.error(`
-❌  Pacote 'pg' não instalado. Rode na raiz do projeto:
-    npm install pg
-`)
-  process.exit(1)
+// ── Executa SQL via Management API ───────────────────────────
+async function runSQL(sql, label) {
+  const url = `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${ACCESS_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query: sql }),
+  })
+
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`HTTP ${res.status} ao executar ${label}: ${body}`)
+  }
+
+  return res.json()
 }
 
 // ── Arquivos SQL (ordem importa) ──────────────────────────────
 const SQL_FILES = [
-  resolve(__dirname, '../database/schema.sql'),
-  resolve(__dirname, '../database/rls-policies.sql'),
+  { path: resolve(__dirname, '../database/schema.sql'),      label: 'schema.sql' },
+  { path: resolve(__dirname, '../database/rls-policies.sql'), label: 'rls-policies.sql' },
 ]
 
-// ── Executa ───────────────────────────────────────────────────
-const client = new Client({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } })
+// ── Principal ─────────────────────────────────────────────────
+console.log('🔌  Conectando ao Supabase via Management API...\n')
 
-try {
-  console.log('🔌  Conectando ao Supabase...')
-  await client.connect()
-  console.log('✅  Conectado!\n')
-
-  for (const filePath of SQL_FILES) {
-    const fileName = filePath.split(/[\\/]/).pop()
-    console.log(`📄  Executando ${fileName}...`)
-    const sql = readFileSync(filePath, 'utf-8')
-    await client.query(sql)
-    console.log(`✅  ${fileName} concluído!\n`)
+for (const { path, label } of SQL_FILES) {
+  console.log(`📄  Executando ${label}...`)
+  const sql = readFileSync(path, 'utf-8')
+  try {
+    await runSQL(sql, label)
+    console.log(`✅  ${label} concluído!\n`)
+  } catch (err) {
+    console.error(`❌  ${err.message}`)
+    process.exit(1)
   }
+}
 
-  const { rows } = await client.query(
-    `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`
+// ── Lista tabelas criadas ─────────────────────────────────────
+try {
+  const rows = await runSQL(
+    `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
+    'listagem'
   )
   console.log('🎉  Banco configurado! Tabelas criadas:')
   rows.forEach(r => console.log(`   • ${r.tablename}`))
-
-} catch (err) {
-  console.error('\n❌  Erro ao executar SQL:', err.message)
-  process.exit(1)
-} finally {
-  await client.end()
+} catch {
+  console.log('🎉  Banco configurado!')
 }
