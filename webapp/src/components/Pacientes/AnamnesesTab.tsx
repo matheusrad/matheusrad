@@ -9,17 +9,24 @@ import type { AnamnesesFormData } from './AnamnesesModal'
 
 type Anamnese = AnamnesesFormData & { id: string; created_at: string }
 
+// ── Visualizador ──────────────────────────────────────────────
 function Viewer({ a, onClose, onEdit }: { a: Anamnese; onClose: () => void; onEdit: () => void }) {
-  const SIM = () => <span className="inline-flex items-center gap-1 text-green-600 text-xs font-medium"><CheckCircle2 size={12} />Sim</span>
-  const NAO = () => <span className="inline-flex items-center gap-1 text-gray-400 text-xs"><XCircle size={12} />Não</span>
-  const Bool = ({ v }: { v: boolean }) => v ? <SIM /> : <NAO />
+  const Bool = ({ v }: { v: boolean }) => v
+    ? <span className="inline-flex items-center gap-1 text-green-600 text-xs font-medium"><CheckCircle2 size={12} />Sim</span>
+    : <span className="inline-flex items-center gap-1 text-gray-400 text-xs"><XCircle size={12} />Não</span>
 
   const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
-    <div className="flex justify-between py-1.5 border-b border-gray-50 last:border-0">
-      <span className="text-sm text-gray-500">{label}</span>
-      <span className="text-sm text-gray-900 font-medium text-right max-w-[60%]">{value || '—'}</span>
+    <div className="flex justify-between py-1.5 border-b border-gray-50 last:border-0 gap-4">
+      <span className="text-sm text-gray-500 shrink-0">{label}</span>
+      <span className="text-sm text-gray-900 font-medium text-right">{value || '—'}</span>
     </div>
   )
+
+  const Sec = ({ title }: { title: string }) => (
+    <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4 first:mt-0">{title}</h3>
+  )
+
+  const sb = a.saude_bucal ?? {}
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
@@ -28,7 +35,7 @@ function Viewer({ a, onClose, onEdit }: { a: Anamnese; onClose: () => void; onEd
           <div>
             <h2 className="font-semibold text-gray-900">Anamnese</h2>
             <p className="text-xs text-gray-400 mt-0.5">
-              Preenchida em {format(parseISO(a.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              {format(parseISO(a.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
             </p>
           </div>
           <div className="flex gap-2">
@@ -37,80 +44,108 @@ function Viewer({ a, onClose, onEdit }: { a: Anamnese; onClose: () => void; onEd
           </div>
         </div>
 
-        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
-          <section>
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Queixa principal</h3>
-            <Row label="Motivo da consulta" value={a.motivo_consulta} />
-            <Row label="Tem dor?" value={<Bool v={a.tem_dor_atual} />} />
-            {a.tem_dor_atual && <>
-              <Row label="Local da dor" value={a.local_dor} />
-              <Row label="Intensidade" value={`${a.intensidade_dor}/10`} />
-            </>}
-            <Row label="Duração do problema" value={a.tempo_problema} />
-            <Row label="Última consulta" value={a.ultima_consulta_dentista} />
-          </section>
+        <div className="overflow-y-auto flex-1 px-6 py-4">
+          <Sec title="Queixa principal" />
+          <Row label="Motivo da consulta" value={a.motivo_consulta} />
+          <Row label="Tem dor?" value={<Bool v={a.tem_dor_atual} />} />
+          {a.tem_dor_atual && <>
+            <Row label="Local da dor" value={a.local_dor} />
+            <Row label="Intensidade" value={`${a.intensidade_dor}/10`} />
+          </>}
+          <Row label="Duração do problema" value={a.tempo_problema} />
+          <Row label="Última consulta" value={a.ultima_consulta_dentista} />
 
-          <section>
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Saúde geral</h3>
-            <Row label="Usa medicamento?" value={<Bool v={a.usa_medicamento} />} />
-            {a.usa_medicamento && <Row label="Qual medicamento?" value={a.qual_medicamento} />}
-            <Row label="Tem alergia?" value={<Bool v={a.tem_alergia} />} />
-            {a.tem_alergia && <Row label="Qual alergia?" value={a.qual_alergia} />}
-            <Row label="Doença sistêmica?" value={<Bool v={a.tem_doenca_sistemica} />} />
-            {a.tem_doenca_sistemica && <Row label="Qual doença?" value={a.qual_doenca} />}
-          </section>
+          <Sec title="Questionário de saúde" />
+          <Row label="01 Em tratamento médico?" value={<Bool v={a.em_tratamento_medico} />} />
+          {a.em_tratamento_medico && <Row label="Qual tratamento?" value={a.detalhe_tratamento_medico} />}
+          <Row label="02 Toma algum remédio?" value={<Bool v={a.usa_medicamento} />} />
+          {a.usa_medicamento && <Row label="Qual(is)?" value={a.qual_medicamento} />}
+          <Row label="03 Está grávida?" value={<Bool v={a.gestante} />} />
+          {a.gestante && <Row label="Período" value={a.periodo_gestacao} />}
+          <Row label="05 Suspendeu algum remédio?" value={<Bool v={a.suspendeu_remedio} />} />
+          {a.suspendeu_remedio && <Row label="Qual e por quê?" value={a.detalhe_remedio_suspenso} />}
+          <Row label="06 Tem alergia?" value={<Bool v={a.tem_alergia} />} />
+          {a.tem_alergia && <Row label="Qual(is)?" value={a.qual_alergia} />}
+          <Row label="07 Sensível a metais/látex?" value={<Bool v={a.sensivel_metais_latex} />} />
 
-          <section>
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Condições específicas</h3>
-            <div className="grid grid-cols-2 gap-1">
-              {([
-                ['Hipertensão', a.hipertensao],
-                ['Diabetes', a.diabetes],
-                ['Problema cardíaco', a.problema_cardiaco],
-                ['Doença renal', a.doenca_renal],
-                ['Doença hepática', a.doenca_hepatica],
-                ['Distúrbio de coagulação', a.disturbio_coagulacao],
-                ['Osteoporose', a.osteoporose],
-                ['HIV / imunossuprimido', a.hiv_imunossuprimido],
-                ['Gestante', a.gestante],
-              ] as [string, boolean][]).map(([label, val]) => (
-                <Row key={label} label={label} value={<Bool v={val} />} />
-              ))}
-            </div>
-            {a.gestante && <Row label="Período" value={a.periodo_gestacao} />}
-          </section>
+          <div className="grid grid-cols-2 gap-x-4">
+            <Row label="08 Diabético?" value={<Bool v={a.diabetes} />} />
+            <Row label="09 Tem anemia?" value={<Bool v={a.tem_anemia} />} />
+            <Row label="10 Tem asma?" value={<Bool v={a.tem_asma} />} />
+            <Row label="11 HIV positivo?" value={<Bool v={a.hiv_imunossuprimido} />} />
+            <Row label="12 Sujeito a infecções?" value={<Bool v={a.sujeito_infeccoes} />} />
+            <Row label="13 Epilepsia/ataques nervosos?" value={<Bool v={a.tem_epilepsia} />} />
+            <Row label="14 Já teve convulsões?" value={<Bool v={a.ja_teve_convulsoes} />} />
+            <Row label="15 Desmaios/tonturas?" value={<Bool v={a.desmaios_tonturas} />} />
+          </div>
+          <Row label="16 Pressão arterial" value={a.pressao_arterial} />
+          <Row label="17 Usa marcapasso/válvula cardíaca?" value={<Bool v={a.usa_marcapasso} />} />
+          <Row label="18 Articulações artificiais/prótese?" value={<Bool v={a.articulacoes_artificiais} />} />
+          <Row label="19 Formigamento/inchaço?" value={<Bool v={a.formigamento_inchazo} />} />
+          <Row label="20 Sangra muito/cicatriza devagar?" value={<Bool v={a.disturbio_coagulacao} />} />
+          <Row label="21 Fuma/tabaco?" value={<Bool v={a.fuma} />} />
+          <Row label="22 Já foi operado?" value={<Bool v={a.ja_fez_cirurgia} />} />
+          <Row label="23 Já teve doença grave?" value={<Bool v={a.doenca_grave} />} />
+          {a.doenca_grave && <Row label="Qual?" value={a.detalhe_doenca_grave} />}
+          <Row label="24 Problemas cardíacos/gástricos/renais/hepáticos?" value={<Bool v={a.tem_doenca_sistemica} />} />
+          {a.tem_doenca_sistemica && <Row label="Quais?" value={a.qual_doenca} />}
+          {a.outras_informacoes_saude && <Row label="25 Outras informações" value={a.outras_informacoes_saude} />}
 
-          <section>
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Hábitos</h3>
-            <Row label="Fuma" value={<Bool v={a.fuma} />} />
-            <Row label="Consome álcool" value={<Bool v={a.consome_alcool} />} />
-            <Row label="Bruxismo" value={<Bool v={a.bruxismo} />} />
-          </section>
+          <Sec title="Condições específicas" />
+          <div className="grid grid-cols-2 gap-x-4">
+            {([
+              ['Hipertensão', a.hipertensao], ['Problema cardíaco', a.problema_cardiaco],
+              ['Doença renal', a.doenca_renal], ['Doença hepática', a.doenca_hepatica],
+              ['Osteoporose', a.osteoporose], ['Consome álcool', a.consome_alcool],
+              ['Bruxismo', a.bruxismo], ['Medo de tratamento', a.medo_tratamento],
+              ['Sangramento pós-procedimento', a.sangramento_pos_procedimento],
+            ] as [string, boolean][]).map(([label, val]) => (
+              <Row key={label} label={label} value={<Bool v={val} />} />
+            ))}
+          </div>
 
-          <section>
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Histórico odontológico</h3>
-            <Row label="Já fez cirurgia" value={<Bool v={a.ja_fez_cirurgia} />} />
-            <Row label="Sangramento pós-procedimento" value={<Bool v={a.sangramento_pos_procedimento} />} />
-            <Row label="Medo de tratamento" value={<Bool v={a.medo_tratamento} />} />
-            <Row label="Usa prótese" value={<Bool v={a.usa_protese} />} />
-          </section>
+          {Object.values(sb).some(v => v) && <>
+            <Sec title="Saúde bucal e hábitos" />
+            {[
+              ['01 Respira bem pelo nariz?', sb.respira_bem_nariz],
+              ['02 Dificuldade/barulho ao abrir a boca?', sb.dificuldade_abrir_boca],
+              ['03 Dor na articulação da mandíbula?', sb.dor_articulacao_mandibula],
+              ['04 Range os dentes?', sb.range_dentes],
+              ['05 Mastiga dos dois lados?', sb.mastiga_dois_lados],
+              ['06 Mastiga bem os alimentos?', sb.mastiga_bem],
+              ['07 Retenção de comida entre dentes?', sb.retencao_comida_dentes],
+              ['08 Hábito de mascar chiclete/bala?', sb.habito_chiclete_bala],
+              ['09 Ingere muito doce?', sb.ingere_muito_doce],
+              ['10 Café/líquidos escuros frequentemente?', sb.cafe_liquidos_escuros],
+              ['11 Come fora de hora?', sb.come_fora_hora],
+              ['12 Escova os dentes depois de comer?', sb.escova_depois_comer],
+              ['13 Gengiva inchada ou dolorida?', sb.gengiva_inchada_dolorida],
+              ['14 Gengiva sangra ao escovar?', sb.gengiva_sangra],
+              ['15 Teve instruções de higiene bucal?', sb.instrucoes_higiene_bucal],
+              ['16 Vezes que escova/dia', sb.vezes_escovacao_dia],
+              ['17 Duração da escovação', sb.duracao_escovacao],
+              ['18 Vezes que usa fio dental/dia', sb.vezes_fio_dental_dia],
+              ['19 Usa antisséptico bucal?', sb.usa_antisseptico_bucal],
+              ['20 Frequência ao dentista', sb.frequencia_dentista],
+              ['21 Último tratamento odontológico', sb.ultimo_tratamento_odonto],
+              ['22 Tomou anestesia local? Correu bem?', sb.tomou_anestesia_local],
+            ].filter(([, v]) => v).map(([label, value]) => (
+              <Row key={label as string} label={label as string} value={value as string} />
+            ))}
+          </>}
 
-          {a.observacoes && (
-            <section>
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Observações</h3>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{a.observacoes}</p>
-            </section>
-          )}
+          {a.observacoes && <>
+            <Sec title="Observações da cirurgiã-dentista" />
+            <p className="text-sm text-gray-700 whitespace-pre-wrap">{a.observacoes}</p>
+          </>}
         </div>
       </div>
     </div>
   )
 }
 
-interface Props {
-  pacienteId: string
-  pacienteNome: string
-}
+// ── Tab principal ─────────────────────────────────────────────
+interface Props { pacienteId: string; pacienteNome: string }
 
 export function AnamnesesTab({ pacienteId, pacienteNome }: Props) {
   const [anamneses, setAnamneses] = useState<Anamnese[]>([])
@@ -167,7 +202,7 @@ export function AnamnesesTab({ pacienteId, pacienteNome }: Props) {
             <div key={a.id} className="border border-gray-100 rounded-xl p-4 flex items-center justify-between hover:border-gray-200 transition-colors">
               <div>
                 <p className="text-sm font-medium text-gray-900">
-                  {i === anamneses.length - 1 ? 'Anamnese inicial' : `Anamnese ${anamneses.length - i}ª`}
+                  {i === anamneses.length - 1 ? 'Anamnese inicial' : `Anamnese — atualização ${anamneses.length - i - 1}`}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
                   {format(parseISO(a.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
@@ -188,28 +223,16 @@ export function AnamnesesTab({ pacienteId, pacienteNome }: Props) {
       )}
 
       {showForm && (
-        <AnamnesesModal
-          pacienteId={pacienteId}
-          pacienteNome={pacienteNome}
-          onClose={() => setShowForm(false)}
-          onSaved={handleSaved}
-        />
+        <AnamnesesModal pacienteId={pacienteId} pacienteNome={pacienteNome}
+          onClose={() => setShowForm(false)} onSaved={handleSaved} />
       )}
       {editing && (
-        <AnamnesesModal
-          pacienteId={pacienteId}
-          pacienteNome={pacienteNome}
-          initial={editing}
-          onClose={() => setEditing(null)}
-          onSaved={handleSaved}
-        />
+        <AnamnesesModal pacienteId={pacienteId} pacienteNome={pacienteNome}
+          initial={editing} onClose={() => setEditing(null)} onSaved={handleSaved} />
       )}
       {viewing && !editing && (
-        <Viewer
-          a={viewing}
-          onClose={() => setViewing(null)}
-          onEdit={() => { setEditing(viewing); setViewing(null) }}
-        />
+        <Viewer a={viewing} onClose={() => setViewing(null)}
+          onEdit={() => { setEditing(viewing); setViewing(null) }} />
       )}
     </div>
   )
