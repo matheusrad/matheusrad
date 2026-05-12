@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Clipboard, Plus, Eye, Pencil, CheckCircle2, XCircle, Send, Copy, Check } from 'lucide-react'
+import { Clipboard, Plus, Eye, Pencil, CheckCircle2, XCircle, Send, Copy, Check, ExternalLink } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -39,6 +39,10 @@ function Viewer({ a, onClose, onEdit }: { a: Anamnese; onClose: () => void; onEd
             </p>
           </div>
           <div className="flex gap-2">
+            <a href={`/anamneses/${a.id}`} target="_blank" rel="noopener noreferrer"
+              className="btn-secondary text-xs py-1.5 px-3 inline-flex items-center gap-1">
+              <ExternalLink size={12} /> Ver / PDF
+            </a>
             <button onClick={onEdit} className="btn-secondary text-xs py-1.5 px-3"><Pencil size={12} /> Editar</button>
             <button onClick={onClose} className="btn-secondary text-xs py-1.5 px-3">Fechar</button>
           </div>
