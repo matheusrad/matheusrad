@@ -737,7 +737,7 @@ export function AgendaPage() {
                   'px-3 py-1.5 rounded-md transition-colors capitalize',
                   view === v ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-700'
                 )}>
-                {v === 'grade' ? 'Grade' : v === 'semana' ? 'Semana' : 'Dia'}
+                {v === 'grade' ? 'Todas' : v === 'semana' ? 'Semana' : 'Dia'}
               </button>
             ))}
           </div>
