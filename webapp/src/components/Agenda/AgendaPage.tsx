@@ -23,6 +23,45 @@ const PX_HR      = 64
 const HOURS      = Array.from({ length: LAST_HOUR - FIRST_HOUR }, (_, i) => i + FIRST_HOUR)
 const DIAS_MIN   = ['D','S','T','Q','Q','S','S']
 
+const PROCEDIMENTOS = [
+  'Avaliação / Consulta inicial',
+  'Consulta de retorno',
+  'Urgência / Dor',
+  'Limpeza (profilaxia)',
+  'Aplicação de flúor',
+  'Selante de fissuras',
+  'Restauração (resina composta)',
+  'Restauração (amálgama)',
+  'Tratamento de canal (endodontia)',
+  'Extração simples',
+  'Extração de siso (3º molar)',
+  'Cirurgia oral menor',
+  'Prótese parcial removível (PPR)',
+  'Prótese total',
+  'Coroa unitária (prótese fixa)',
+  'Prótese sobre implante',
+  'Implante dentário (cirurgia)',
+  'Clareamento dental (consultório)',
+  'Clareamento dental (placa caseira)',
+  'Faceta de porcelana',
+  'Faceta de resina',
+  'Aparelho ortodôntico fixo (instalação)',
+  'Manutenção ortodôntica',
+  'Aparelho removível',
+  'Alinhador transparente',
+  'Contenção pós-ortodontia',
+  'Raspagem e alisamento radicular',
+  'Cirurgia periodontal',
+  'Gengivoplastia',
+  'Enxerto gengival',
+  'Placa miorrelaxante (bruxismo)',
+  'Radiografia periapical',
+  'Radiografia panorâmica',
+  'Tomografia computadorizada',
+]
+
+interface Dentista { id: string; nome: string; especialidade: string | null; cro: string | null; cor: string; ativo: boolean }
+
 const STATUS_CFG: Record<string, { label: string; bg: string; bl: string; text: string; dot: string }> = {
   Agendado:   { label: 'Agendado',   bg: 'bg-blue-50',   bl: 'border-l-blue-500',   text: 'text-blue-800',   dot: 'bg-blue-500' },
   Confirmado: { label: 'Confirmado', bg: 'bg-green-50',  bl: 'border-l-green-500',  text: 'text-green-800',  dot: 'bg-green-500' },
@@ -378,8 +417,11 @@ function ConsultaModal({
           {/* Procedimento */}
           <div>
             <label className="label">Procedimento</label>
-            <input value={proc} onChange={e => setProc(e.target.value)} className="input"
-              placeholder="Ex: Limpeza, Restauração..." />
+            <input list="proc-list" value={proc} onChange={e => setProc(e.target.value)}
+              className="input" placeholder="Selecione ou escreva o procedimento..." autoComplete="off" />
+            <datalist id="proc-list">
+              {PROCEDIMENTOS.map(p => <option key={p} value={p} />)}
+            </datalist>
           </div>
 
           {/* Canal + Status */}
@@ -454,6 +496,77 @@ function ConsultaBloco({ consulta, onClick }: { consulta: Consulta; onClick: () 
   )
 }
 
+// ── Modal adicionar profissional (leve) ───────────────────────
+function ProfissionalModal({ onClose, onSaved }: { onClose: () => void; onSaved: (d: Dentista) => void }) {
+  const CORES = ['#3B82F6','#10B981','#8B5CF6','#F59E0B','#EF4444','#EC4899','#14B8A6','#F97316']
+  const [nome,   setNome]   = useState('')
+  const [spec,   setSpec]   = useState('Clínico Geral')
+  const [cro,    setCro]    = useState('')
+  const [cor,    setCor]    = useState('#3B82F6')
+  const [saving, setSaving] = useState(false)
+  const [error,  setError]  = useState('')
+
+  async function handleSave() {
+    if (!nome.trim()) { setError('Nome é obrigatório.'); return }
+    setSaving(true); setError('')
+    const { data, error: e } = await supabase
+      .from('dentistas').insert({ nome: nome.trim(), especialidade: spec, cro: cro || null, cor })
+      .select().single()
+    if (e) { setError(e.message); setSaving(false); return }
+    onSaved(data as Dentista)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 z-10">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-gray-900">Adicionar profissional</h2>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="label">Nome completo</label>
+            <input value={nome} onChange={e => setNome(e.target.value)} className="input"
+              placeholder="Dra. Fulana de Tal" autoFocus />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Especialidade</label>
+              <input value={spec} onChange={e => setSpec(e.target.value)} className="input"
+                placeholder="Clínico Geral" />
+            </div>
+            <div>
+              <label className="label">CRO</label>
+              <input value={cro} onChange={e => setCro(e.target.value)} className="input"
+                placeholder="CRO-SP 00000" />
+            </div>
+          </div>
+          <div>
+            <label className="label">Cor na agenda</label>
+            <div className="flex gap-2 flex-wrap mt-1">
+              {CORES.map(c => (
+                <button key={c} onClick={() => setCor(c)}
+                  style={{ background: c }}
+                  className={clsx('w-7 h-7 rounded-full transition-transform', cor === c && 'scale-125 ring-2 ring-offset-1 ring-gray-400')} />
+              ))}
+            </div>
+          </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+        </div>
+        <div className="flex gap-2 mt-4 justify-end">
+          <button onClick={onClose} className="btn-secondary">Cancelar</button>
+          <button onClick={handleSave} disabled={saving} className="btn-primary">
+            {saving ? 'Salvando...' : 'Adicionar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Página principal ──────────────────────────────────────────
 export function AgendaPage() {
   const [dataBase,    setDataBase]    = useState(new Date())
@@ -465,6 +578,8 @@ export function AgendaPage() {
   const [showNova,    setShowNova]    = useState(false)
   const [aguardando,  setAguardando]  = useState(true)
   const [agendas,     setAgendas]     = useState(true)
+  const [dentistas,   setDentistas]   = useState<Dentista[]>([])
+  const [showAddProf, setShowAddProf] = useState(false)
 
   const inicio  = startOfWeek(dataBase, { weekStartsOn: 1 })
   const dias    = Array.from({ length: 6 }, (_, i) => addDays(inicio, i)) // Seg–Sáb
@@ -482,6 +597,11 @@ export function AgendaPage() {
   }, [dataBase])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    supabase.from('dentistas').select('*').eq('ativo', true).order('nome')
+      .then(({ data }) => setDentistas((data as Dentista[]) ?? []))
+  }, [])
 
   function consultasDoDia(dia: Date) {
     return consultas.filter(c => isSameDay(parseISO(c.data_consulta), dia))
@@ -548,15 +668,30 @@ export function AgendaPage() {
           </button>
           {agendas && (
             <div className="mt-2 space-y-1">
-              <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-blue-50">
-                <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
-                <span className="text-xs font-medium text-blue-800 truncate">Cirurgiã-dentista</span>
-              </div>
-              <button className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 w-full text-left">
-                <Users size={11} className="text-gray-400 shrink-0" />
-                <span className="text-xs text-gray-500">Todos</span>
-              </button>
-              <button className="flex items-center gap-2 px-2 py-1 text-xs text-gray-400 hover:text-gray-600">
+              {dentistas.length === 0 ? (
+                <p className="text-[11px] text-gray-400 px-2 py-1">Nenhum profissional cadastrado</p>
+              ) : (
+                <>
+                  {dentistas.map(d => (
+                    <div key={d.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50">
+                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.cor }} />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-gray-800 truncate">{d.nome}</p>
+                        {d.especialidade && (
+                          <p className="text-[10px] text-gray-400 truncate">{d.especialidade}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer"
+                    onClick={() => {}}>
+                    <Users size={11} className="text-gray-400 shrink-0" />
+                    <span className="text-xs text-gray-500">Todos</span>
+                  </div>
+                </>
+              )}
+              <button onClick={() => setShowAddProf(true)}
+                className="flex items-center gap-2 px-2 py-1 text-xs text-blue-500 hover:text-blue-700 font-medium">
                 <Plus size={11} /> Adicionar profissional
               </button>
             </div>
@@ -704,6 +839,13 @@ export function AgendaPage() {
           defaultDate={newDate ?? undefined}
           onClose={() => { setShowNova(false); setEditing(null); setNewDate(null) }}
           onSaved={handleSaved}
+        />
+      )}
+
+      {showAddProf && (
+        <ProfissionalModal
+          onClose={() => setShowAddProf(false)}
+          onSaved={d => { setDentistas(prev => [...prev, d]); setShowAddProf(false) }}
         />
       )}
     </div>
