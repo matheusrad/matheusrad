@@ -14,7 +14,7 @@ export function Header() {
   return (
     <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-6 shrink-0">
       <div className="flex items-center gap-2 text-sm text-gray-500">
-        <span className="font-medium text-gray-900">Consultório Dra. Lorena</span>
+        <span className="font-medium text-gray-900">Consultório Dra. Lorena Coutinho</span>
       </div>
 
       <div className="flex items-center gap-1">
