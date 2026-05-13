@@ -570,6 +570,7 @@ function ProfissionalModal({ onClose, onSaved }: { onClose: () => void; onSaved:
 // ── Página principal ──────────────────────────────────────────
 export function AgendaPage() {
   const [dataBase,    setDataBase]    = useState(new Date())
+  const [view,        setView]        = useState<'grade' | 'semana' | 'dia'>('grade')
   const [consultas,   setConsultas]   = useState<Consulta[]>([])
   const [loading,     setLoading]     = useState(true)
   const [selected,    setSelected]    = useState<Consulta | null>(null)
@@ -600,7 +601,7 @@ export function AgendaPage() {
 
   useEffect(() => {
     supabase.from('dentistas').select('*').eq('ativo', true).order('nome')
-      .then(({ data }) => setDentistas((data as Dentista[]) ?? []))
+      .then(({ data, error }) => { if (!error) setDentistas((data as Dentista[]) ?? []) })
   }, [])
 
   function consultasDoDia(dia: Date) {
@@ -730,13 +731,149 @@ export function AgendaPage() {
             className="btn-secondary text-xs px-3 py-1.5">Hoje</button>
 
           <div className="flex bg-gray-100 rounded-lg p-0.5 text-xs font-medium">
-            <span className="px-3 py-1.5 bg-white rounded-md shadow-sm text-gray-800">Semana</span>
-            <span className="px-3 py-1.5 text-gray-500">Dia</span>
+            {(['grade','semana','dia'] as const).map(v => (
+              <button key={v} onClick={() => setView(v)}
+                className={clsx(
+                  'px-3 py-1.5 rounded-md transition-colors capitalize',
+                  view === v ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-700'
+                )}>
+                {v === 'grade' ? 'Grade' : v === 'semana' ? 'Semana' : 'Dia'}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Grade da semana */}
-        <div className="flex-1 overflow-auto">
+        {/* ── Vista: lista da semana ───────────────────────── */}
+        {view === 'semana' && (
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            {loading ? (
+              <div className="flex justify-center py-16">
+                <div className="w-7 h-7 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : consultas.filter(c => c.status !== 'Cancelado').length === 0 ? (
+              <div className="flex flex-col items-center py-16 gap-3 text-gray-400">
+                <Clock size={36} />
+                <p className="text-sm">Nenhuma consulta nesta semana</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {dias.map(dia => {
+                  const dCons = consultasDoDia(dia).filter(c => c.status !== 'Cancelado')
+                  if (dCons.length === 0) return null
+                  return (
+                    <div key={dia.toISOString()}>
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={clsx(
+                          'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0',
+                          isSameDay(dia, hoje) ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
+                        )}>
+                          {format(dia, 'd')}
+                        </div>
+                        <p className="text-sm font-semibold text-gray-700 capitalize">
+                          {format(dia, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                        </p>
+                        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                          {dCons.length} consulta{dCons.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <div className="space-y-1 pl-11">
+                        {dCons.map(c => {
+                          const cfg = STATUS_CFG[c.status] || STATUS_CFG.Agendado
+                          const ini = parseISO(c.data_consulta)
+                          const fim = c.data_fim_consulta ? parseISO(c.data_fim_consulta) : addHours(ini, 1)
+                          return (
+                            <button key={c.id} onClick={() => setSelected(c)}
+                              className="w-full flex items-center gap-4 px-4 py-3 bg-white border border-gray-100 rounded-xl hover:border-gray-200 hover:shadow-sm transition-all text-left">
+                              <div className="text-center w-20 shrink-0">
+                                <p className="text-sm font-bold text-gray-800">{format(ini, 'HH:mm')}</p>
+                                <p className="text-xs text-gray-400">{format(fim, 'HH:mm')}</p>
+                              </div>
+                              <div className={clsx('w-1 h-8 rounded-full shrink-0', cfg.bl.replace('border-l-', 'bg-'))} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-gray-900 truncate">{c.paciente_nome}</p>
+                                <p className="text-xs text-gray-400 truncate">{c.procedimento || 'Consulta'}</p>
+                              </div>
+                              <span className={clsx('text-xs font-medium px-2 py-1 rounded-lg shrink-0', cfg.bg, cfg.text)}>
+                                {cfg.label}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Vista: só hoje ───────────────────────────────── */}
+        {view === 'dia' && (
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg font-bold">
+                {format(hoje, 'd')}
+              </div>
+              <div>
+                <p className="text-base font-semibold text-gray-900 capitalize">
+                  {format(hoje, "EEEE", { locale: ptBR })}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {format(hoje, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                </p>
+              </div>
+            </div>
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <div className="w-7 h-7 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (() => {
+              const hojeConsultas = consultasDoDia(hoje).filter(c => c.status !== 'Cancelado')
+              return hojeConsultas.length === 0 ? (
+                <div className="flex flex-col items-center py-12 gap-3 text-gray-400">
+                  <Clock size={36} />
+                  <p className="text-sm">Nenhuma consulta hoje</p>
+                  <button onClick={() => { const d = new Date(); d.setHours(8,0,0,0); setNewDate(d); setShowNova(true) }}
+                    className="btn-primary text-xs mt-1">
+                    <Plus size={12} /> Agendar para hoje
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {hojeConsultas.map(c => {
+                    const cfg = STATUS_CFG[c.status] || STATUS_CFG.Agendado
+                    const ini = parseISO(c.data_consulta)
+                    const fim = c.data_fim_consulta ? parseISO(c.data_fim_consulta) : addHours(ini, 1)
+                    return (
+                      <button key={c.id} onClick={() => setSelected(c)}
+                        className="w-full flex items-center gap-4 px-4 py-3.5 bg-white border border-gray-100 rounded-xl hover:border-gray-200 hover:shadow-sm transition-all text-left">
+                        <div className="text-center w-20 shrink-0">
+                          <p className="text-sm font-bold text-gray-800">{format(ini, 'HH:mm')}</p>
+                          <p className="text-xs text-gray-400">{format(fim, 'HH:mm')}</p>
+                        </div>
+                        <div className={clsx('w-1 h-10 rounded-full shrink-0', cfg.bl.replace('border-l-', 'bg-'))} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{c.paciente_nome}</p>
+                          <p className="text-xs text-gray-400 truncate">
+                            {c.procedimento || 'Consulta'}
+                            {c.paciente_telefone && ` · ${c.paciente_telefone}`}
+                          </p>
+                        </div>
+                        <span className={clsx('text-xs font-medium px-2.5 py-1.5 rounded-lg shrink-0', cfg.bg, cfg.text)}>
+                          {cfg.label}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )
+            })()}
+          </div>
+        )}
+
+        {/* ── Vista: grade semanal (padrão) ────────────────── */}
+        {view === 'grade' && <div className="flex-1 overflow-auto">
           <div className="flex flex-col min-h-full">
 
             {/* Cabeçalho: dias */}
@@ -820,7 +957,7 @@ export function AgendaPage() {
               </div>
             )}
           </div>
-        </div>
+        </div>}
       </div>
 
       {/* ── Modais / popups ───────────────────────────────── */}
