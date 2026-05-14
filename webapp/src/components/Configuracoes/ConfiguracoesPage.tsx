@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Save, User, Building, Bell, Shield, ChevronRight, Plus, Pencil, Trash2, X, FileText, MessageSquare, CreditCard, Stethoscope } from 'lucide-react'
+import { Save, User, Building, ChevronRight, Plus, Pencil, Trash2, X, FileText, MessageSquare, CreditCard, Stethoscope, MoreVertical } from 'lucide-react'
 import clsx from 'clsx'
 import { supabase } from '@/lib/supabase'
 
@@ -15,7 +15,7 @@ const secoes: { id: Secao; label: string; icon: React.ElementType; desc: string 
   { id: 'taxas',         label: 'Taxas maquininha',icon: CreditCard,     desc: 'Taxas das operadoras de cartão' },
 ]
 
-interface Dentista { id: string; nome: string; especialidade: string | null; cro: string | null; cor: string; ativo: boolean }
+interface Dentista { id: string; nome: string; especialidade: string | null; cro: string | null; cor: string; ativo: boolean; email?: string | null }
 
 const CORES = ['#3B82F6','#10B981','#8B5CF6','#F59E0B','#EF4444','#EC4899','#14B8A6','#F97316']
 
@@ -25,6 +25,7 @@ function DentistaModal({ initial, onClose, onSaved }: {
   initial?: Dentista | null; onClose: () => void; onSaved: (d: Dentista) => void
 }) {
   const [nome,   setNome]   = useState(initial?.nome ?? '')
+  const [email,  setEmail]  = useState(initial?.email ?? '')
   const [spec,   setSpec]   = useState(initial?.especialidade ?? 'Clínico Geral')
   const [cro,    setCro]    = useState(initial?.cro ?? '')
   const [cor,    setCor]    = useState(initial?.cor ?? '#3B82F6')
@@ -34,7 +35,7 @@ function DentistaModal({ initial, onClose, onSaved }: {
   async function handleSave() {
     if (!nome.trim()) { setError('Nome é obrigatório.'); return }
     setSaving(true); setError('')
-    const payload = { nome: nome.trim(), especialidade: spec || null, cro: cro || null, cor }
+    const payload = { nome: nome.trim(), email: email || null, especialidade: spec || null, cro: cro || null, cor }
     let data, err
     if (initial) {
       ;({ data, error: err } = await supabase.from('dentistas').update(payload).eq('id', initial.id).select().single())
@@ -48,7 +49,7 @@ function DentistaModal({ initial, onClose, onSaved }: {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 z-10">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-5 z-10">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-gray-900">{initial ? 'Editar profissional' : 'Novo profissional'}</h2>
           <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"><X size={16} /></button>
@@ -57,6 +58,10 @@ function DentistaModal({ initial, onClose, onSaved }: {
           <div>
             <label className="label">Nome completo *</label>
             <input value={nome} onChange={e => setNome(e.target.value)} className="input" placeholder="Dra. Lorena..." autoFocus />
+          </div>
+          <div>
+            <label className="label">E-mail</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input" placeholder="dentista@email.com" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -276,6 +281,53 @@ function MensagensSecao() {
         </div>
       </div>
     </div>
+  )
+}
+
+function DentistaRow({ dentista: d, initials, onEdit, onDelete, deleting }: {
+  dentista: Dentista; initials: string; onEdit: () => void; onDelete: () => void; deleting: boolean
+}) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  return (
+    <tr className="hover:bg-gray-50 transition-colors relative">
+      <td className="px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+            style={{ background: d.cor }}>
+            {initials}
+          </div>
+          <span className="font-medium text-gray-900">{d.nome}</span>
+        </div>
+      </td>
+      <td className="px-4 py-4 text-gray-500">{d.email ?? '—'}</td>
+      <td className="px-4 py-4 text-gray-700">{d.cro ?? '—'}</td>
+      <td className="px-4 py-4">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border border-blue-200 text-blue-700 bg-blue-50">
+          {d.especialidade ?? 'Dentista'}
+        </span>
+      </td>
+      <td className="px-4 py-4 relative">
+        <button onClick={() => setMenuOpen(v => !v)}
+          className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+          <MoreVertical size={15} />
+        </button>
+        {menuOpen && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+            <div className="absolute right-4 top-10 z-20 bg-white border border-gray-100 rounded-xl shadow-lg py-1 w-36">
+              <button onClick={() => { setMenuOpen(false); onEdit() }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                <Pencil size={13} /> Editar
+              </button>
+              <button onClick={() => { setMenuOpen(false); onDelete() }} disabled={deleting}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50">
+                <Trash2 size={13} /> {deleting ? 'Removendo...' : 'Desativar'}
+              </button>
+            </div>
+          </>
+        )}
+      </td>
+    </tr>
   )
 }
 
@@ -520,16 +572,17 @@ export function ConfiguracoesPage() {
           {secaoAtiva === 'clinica' && <ClinicaSecao />}
 
           {secaoAtiva === 'profissionais' && (
-            <>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Profissionais cadastrados</p>
-                <button onClick={() => { setEditando(null); setShowModal(true) }} className="btn-primary text-xs py-1.5 px-3">
-                  <Plus size={13} /> Novo profissional
+            <div className="-m-6">
+              {/* Cabeçalho interno */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <h2 className="font-semibold text-gray-900 text-base">Gestão de profissionais</h2>
+                <button onClick={() => { setEditando(null); setShowModal(true) }} className="btn-primary">
+                  <Plus size={14} /> Convidar profissional
                 </button>
               </div>
 
               {dentistas.length === 0 ? (
-                <div className="py-12 flex flex-col items-center gap-3 text-center border-2 border-dashed border-gray-200 rounded-2xl">
+                <div className="py-16 flex flex-col items-center gap-3 text-center">
                   <User size={36} className="text-gray-200" />
                   <p className="text-sm text-gray-500">Nenhum profissional cadastrado ainda.</p>
                   <button onClick={() => { setEditando(null); setShowModal(true) }} className="btn-primary text-xs">
@@ -537,35 +590,34 @@ export function ConfiguracoesPage() {
                   </button>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {dentistas.map(d => (
-                    <div key={d.id} className="flex items-center gap-4 p-4 border border-gray-100 rounded-xl hover:border-gray-200 transition-colors">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
-                        style={{ background: d.cor }}>
-                        {d.nome.trim().split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 text-sm">{d.nome}</p>
-                        <p className="text-xs text-gray-400">
-                          {d.especialidade ?? 'Clínico Geral'}
-                          {d.cro && ` · ${d.cro}`}
-                        </p>
-                      </div>
-                      <div className="flex gap-1">
-                        <button onClick={() => { setEditando(d); setShowModal(true) }}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                          <Pencil size={14} />
-                        </button>
-                        <button onClick={() => handleDelete(d.id)} disabled={deletando === d.id}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-6 py-3">Nome</th>
+                      <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3">E-mail</th>
+                      <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3">CRO</th>
+                      <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3">Tipo</th>
+                      <th className="w-10" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {dentistas.map(d => {
+                      const initials = d.nome.trim().split(' ').map((p: string) => p[0]).slice(0, 2).join('').toUpperCase()
+                      return (
+                        <DentistaRow
+                          key={d.id}
+                          dentista={d}
+                          initials={initials}
+                          onEdit={() => { setEditando(d); setShowModal(true) }}
+                          onDelete={() => handleDelete(d.id)}
+                          deleting={deletando === d.id}
+                        />
+                      )
+                    })}
+                  </tbody>
+                </table>
               )}
-            </>
+            </div>
           )}
 
           {secaoAtiva === 'taxas' && <TaxasMaquininha />}
