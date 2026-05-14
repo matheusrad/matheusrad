@@ -337,16 +337,60 @@ const FUSOS = [
   'America/Porto_Velho', 'America/Boa_Vista', 'America/Rio_Branco',
 ]
 
-function ClinicaSecao() {
-  const [recibo, setRecibo] = useState<'dentista' | 'clinica'>('dentista')
-  const [logo,   setLogo]   = useState<string | null>(null)
+const UFS = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO']
+
+interface ClinicaConfig {
+  id?: string; nome: string; email: string; cnpj: string; telefone: string; cro: string
+  fuso_horario: string; cep: string; endereco: string; numero: string; complemento: string
+  bairro: string; cidade: string; estado: string; emitir_recibo: string
+  pacientes_aguardando: boolean; pesquisa_satisfacao: boolean
+}
+
+const CONFIG_VAZIA: ClinicaConfig = {
+  nome: 'Consultório Dra. Lorena Coutinho', email: '', cnpj: '', telefone: '', cro: '',
+  fuso_horario: 'America/Sao_Paulo', cep: '', endereco: '', numero: '', complemento: '',
+  bairro: '', cidade: '', estado: 'SP', emitir_recibo: 'dentista',
+  pacientes_aguardando: true, pesquisa_satisfacao: false,
+}
+
+function ClinicaSecao({ onSalvar }: { onSalvar?: (salvando: boolean) => void }) {
+  const [cfg,     setCfg]     = useState<ClinicaConfig>(CONFIG_VAZIA)
+  const [loading, setLoading] = useState(true)
+  const [salvando, setSalvando] = useState(false)
+  const [ok,      setOk]      = useState(false)
+  const [logo,    setLogo]    = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.from('configuracoes_clinica').select('*').limit(1).single()
+      .then(({ data }) => {
+        if (data) setCfg(data as ClinicaConfig)
+        setLoading(false)
+      })
+  }, [])
+
+  function set(field: keyof ClinicaConfig, value: string | boolean) {
+    setCfg(prev => ({ ...prev, [field]: value }))
+  }
+
+  async function salvar() {
+    setSalvando(true); setOk(false)
+    if (cfg.id) {
+      await supabase.from('configuracoes_clinica').update(cfg).eq('id', cfg.id)
+    } else {
+      const { data } = await supabase.from('configuracoes_clinica').insert(cfg).select().single()
+      if (data) setCfg(data as ClinicaConfig)
+    }
+    setSalvando(false); setOk(true)
+    setTimeout(() => setOk(false), 3000)
+  }
 
   function handleLogo(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    const url = URL.createObjectURL(file)
-    setLogo(url)
+    setLogo(URL.createObjectURL(file))
   }
+
+  if (loading) return <div className="py-12 text-center text-sm text-gray-400">Carregando...</div>
 
   return (
     <div className="space-y-6">
@@ -358,41 +402,44 @@ function ClinicaSecao() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">* Nome</label>
-                <input className="input w-full" defaultValue="Consultório Dra. Lorena Coutinho" />
+                <input className="input w-full" value={cfg.nome} onChange={e => set('nome', e.target.value)} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">* Email</label>
-                <input className="input w-full" type="email" placeholder="contato@clinica.com.br" />
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+                <input className="input w-full" type="email" placeholder="contato@clinica.com.br"
+                  value={cfg.email} onChange={e => set('email', e.target.value)} />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">* CNPJ ou CPF</label>
-                <input className="input w-full" placeholder="00.000.000/0001-00" />
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">CNPJ ou CPF</label>
+                <input className="input w-full" placeholder="00.000.000/0001-00"
+                  value={cfg.cnpj} onChange={e => set('cnpj', e.target.value)} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">* Telefone</label>
-                <input className="input w-full" placeholder="(11) 99999-9999" />
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Telefone</label>
+                <input className="input w-full" placeholder="(11) 99999-9999"
+                  value={cfg.telefone} onChange={e => set('telefone', e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">CRO</label>
+                <input className="input w-full" placeholder="CRO-SP 00000"
+                  value={cfg.cro} onChange={e => set('cro', e.target.value)} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Fuso horário</label>
-                <select className="input w-full">
-                  {FUSOS.map(f => (
-                    <option key={f} value={f}>{f.replace('America/', '').replace('_', ' ')}</option>
-                  ))}
+                <select className="input w-full" value={cfg.fuso_horario} onChange={e => set('fuso_horario', e.target.value)}>
+                  {FUSOS.map(f => <option key={f} value={f}>{f.replace('America/', '').replace('_', ' ')}</option>)}
                 </select>
               </div>
             </div>
           </div>
-          {/* Logo */}
           <div className="shrink-0 flex flex-col items-center gap-2">
             <div className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50">
-              {logo
-                ? <img src={logo} alt="Logo" className="w-full h-full object-cover" />
-                : <Building size={28} className="text-gray-300" />}
+              {logo ? <img src={logo} alt="Logo" className="w-full h-full object-cover" /> : <Building size={28} className="text-gray-300" />}
             </div>
             {logo
-              ? <button onClick={() => setLogo(null)} className="text-xs text-red-500 hover:underline">Remover logo</button>
+              ? <button onClick={() => setLogo(null)} className="text-xs text-red-500 hover:underline">Remover</button>
               : <label className="text-xs text-blue-600 hover:underline cursor-pointer">
                   Adicionar logo
                   <input type="file" accept="image/*" className="hidden" onChange={handleLogo} />
@@ -407,37 +454,35 @@ function ClinicaSecao() {
         <div className="space-y-3">
           <div className="grid grid-cols-4 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">* CEP</label>
-              <input className="input w-full" placeholder="00000-000" />
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">CEP</label>
+              <input className="input w-full" placeholder="00000-000" value={cfg.cep} onChange={e => set('cep', e.target.value)} />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">* Endereço</label>
-              <input className="input w-full" placeholder="Rua, Avenida..." />
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Endereço</label>
+              <input className="input w-full" placeholder="Rua, Avenida..." value={cfg.endereco} onChange={e => set('endereco', e.target.value)} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">* Número</label>
-              <input className="input w-full" placeholder="123" />
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Número</label>
+              <input className="input w-full" placeholder="123" value={cfg.numero} onChange={e => set('numero', e.target.value)} />
             </div>
           </div>
           <div className="grid grid-cols-4 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Complemento</label>
-              <input className="input w-full" placeholder="Sala, andar..." />
+              <input className="input w-full" placeholder="Sala, andar..." value={cfg.complemento} onChange={e => set('complemento', e.target.value)} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">* Bairro</label>
-              <input className="input w-full" placeholder="Bairro" />
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Bairro</label>
+              <input className="input w-full" placeholder="Bairro" value={cfg.bairro} onChange={e => set('bairro', e.target.value)} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">* Cidade</label>
-              <input className="input w-full" placeholder="São Paulo" />
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Cidade</label>
+              <input className="input w-full" placeholder="São Paulo" value={cfg.cidade} onChange={e => set('cidade', e.target.value)} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">* Estado</label>
-              <select className="input w-full">
-                {['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'].map(uf => (
-                  <option key={uf}>{uf}</option>
-                ))}
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Estado</label>
+              <select className="input w-full" value={cfg.estado} onChange={e => set('estado', e.target.value)}>
+                {UFS.map(uf => <option key={uf}>{uf}</option>)}
               </select>
             </div>
           </div>
@@ -448,9 +493,27 @@ function ClinicaSecao() {
       <div className="grid grid-cols-2 gap-4">
         <div className="border border-gray-100 rounded-2xl p-5">
           <p className="font-medium text-gray-800 mb-4">Recursos</p>
-          <div className="space-y-0 divide-y divide-gray-50">
-            <Toggle label="Listar pacientes aguardando" desc="Exibe na lateral da agenda os pacientes na sala de espera" defaultChecked />
-            <Toggle label="Pesquisa de satisfação" desc="Envia pesquisa de 0 a 10 após o atendimento via WhatsApp" />
+          <div className="divide-y divide-gray-50">
+            <div className="flex items-center justify-between py-3">
+              <div>
+                <p className="text-sm font-medium text-gray-800">Listar pacientes aguardando</p>
+                <p className="text-xs text-gray-500 mt-0.5">Exibe na lateral da agenda os pacientes na sala de espera</p>
+              </div>
+              <button onClick={() => set('pacientes_aguardando', !cfg.pacientes_aguardando)}
+                className={clsx('w-11 h-6 rounded-full transition-colors relative shrink-0 ml-4', cfg.pacientes_aguardando ? 'bg-blue-600' : 'bg-gray-200')}>
+                <span className={clsx('absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform', cfg.pacientes_aguardando ? 'translate-x-5' : 'translate-x-0.5')} />
+              </button>
+            </div>
+            <div className="flex items-center justify-between py-3">
+              <div>
+                <p className="text-sm font-medium text-gray-800">Pesquisa de satisfação</p>
+                <p className="text-xs text-gray-500 mt-0.5">Envia pesquisa de 0 a 10 após o atendimento via WhatsApp</p>
+              </div>
+              <button onClick={() => set('pesquisa_satisfacao', !cfg.pesquisa_satisfacao)}
+                className={clsx('w-11 h-6 rounded-full transition-colors relative shrink-0 ml-4', cfg.pesquisa_satisfacao ? 'bg-blue-600' : 'bg-gray-200')}>
+                <span className={clsx('absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform', cfg.pesquisa_satisfacao ? 'translate-x-5' : 'translate-x-0.5')} />
+              </button>
+            </div>
           </div>
         </div>
         <div className="border border-gray-100 rounded-2xl p-5">
@@ -459,8 +522,8 @@ function ClinicaSecao() {
           <div className="space-y-3">
             {(['dentista', 'clinica'] as const).map(opt => (
               <label key={opt} className="flex items-center gap-2.5 cursor-pointer">
-                <input type="radio" name="recibo" value={opt} checked={recibo === opt} onChange={() => setRecibo(opt)}
-                  className="accent-blue-600" />
+                <input type="radio" name="recibo" value={opt} checked={cfg.emitir_recibo === opt}
+                  onChange={() => set('emitir_recibo', opt)} className="accent-blue-600" />
                 <span className="text-sm text-gray-700">
                   {opt === 'dentista' ? 'Em nome do dentista' : 'Em nome da clínica'}
                 </span>
@@ -468,6 +531,14 @@ function ClinicaSecao() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Botão salvar próprio */}
+      <div className="flex items-center justify-end gap-3 pt-2">
+        {ok && <span className="text-sm text-green-600 font-medium">✓ Configurações salvas</span>}
+        <button onClick={salvar} disabled={salvando} className="btn-primary disabled:opacity-60">
+          <Save size={15} /> {salvando ? 'Salvando...' : 'Salvar configurações'}
+        </button>
       </div>
     </div>
   )
