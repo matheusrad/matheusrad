@@ -304,14 +304,14 @@ export default function DocumentoPrintPage() {
   return (
     <>
       {/* Barra de ações */}
-      <div className="print:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-100 z-10 px-6 py-3 flex items-center gap-4">
+      <div className="print:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-100 z-10 px-6 py-3 flex items-center gap-4 shadow-sm">
         <button onClick={() => router.back()} className="btn-secondary text-sm">
           <ArrowLeft size={15} /> Voltar
         </button>
         <div className="flex-1" />
         <p className="text-sm text-gray-500">{doc.paciente_nome} · {doc.numero_documento}</p>
         <button onClick={() => window.print()} className="btn-primary">
-          <Printer size={15} /> Imprimir / PDF
+          <Printer size={15} /> Imprimir / Baixar PDF
         </button>
       </div>
 
@@ -330,17 +330,26 @@ export default function DocumentoPrintPage() {
         </div>
       </div>
 
-      {/* Documento */}
-      <div className="print:mt-0 flex justify-center px-4 pb-12">
-        <div className="w-full max-w-2xl bg-white shadow-md rounded-xl p-10 print:shadow-none print:rounded-none print:p-0 print:max-w-none">
-          {renderDoc()}
+      {/* Prévia do documento — fundo cinza simulando folha A4 */}
+      <div className="print:hidden print:mt-0 bg-gray-100 min-h-screen flex justify-center pt-6 pb-16 px-4">
+        <div className="w-full max-w-[210mm]">
+          <p className="text-xs text-gray-400 text-center mb-3">Prévia do documento · A4</p>
+          <div className="bg-white shadow-xl rounded-sm p-[18mm] min-h-[297mm]">
+            {renderDoc()}
+          </div>
         </div>
+      </div>
+
+      {/* Versão que será impressa — sem fundo cinza */}
+      <div className="hidden print:block">
+        {renderDoc()}
       </div>
 
       <style>{`
         @media print {
           @page { size: A4; margin: 20mm 18mm; }
-          body { -webkit-print-color-adjust: exact; }
+          body { -webkit-print-color-adjust: exact; background: white; }
+          * { box-shadow: none !important; }
         }
       `}</style>
     </>
