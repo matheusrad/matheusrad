@@ -279,6 +279,148 @@ function MensagensSecao() {
   )
 }
 
+const FUSOS = [
+  'America/Sao_Paulo', 'America/Manaus', 'America/Belem',
+  'America/Fortaleza', 'America/Recife', 'America/Cuiaba',
+  'America/Porto_Velho', 'America/Boa_Vista', 'America/Rio_Branco',
+]
+
+function ClinicaSecao() {
+  const [recibo, setRecibo] = useState<'dentista' | 'clinica'>('dentista')
+  const [logo,   setLogo]   = useState<string | null>(null)
+
+  function handleLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const url = URL.createObjectURL(file)
+    setLogo(url)
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Dados da clínica */}
+      <div>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Dados da clínica</p>
+        <div className="flex gap-4">
+          <div className="flex-1 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">* Nome</label>
+                <input className="input w-full" defaultValue="Consultório Dra. Lorena Coutinho" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">* Email</label>
+                <input className="input w-full" type="email" placeholder="contato@clinica.com.br" />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">* CNPJ ou CPF</label>
+                <input className="input w-full" placeholder="00.000.000/0001-00" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">* Telefone</label>
+                <input className="input w-full" placeholder="(11) 99999-9999" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Fuso horário</label>
+                <select className="input w-full">
+                  {FUSOS.map(f => (
+                    <option key={f} value={f}>{f.replace('America/', '').replace('_', ' ')}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+          {/* Logo */}
+          <div className="shrink-0 flex flex-col items-center gap-2">
+            <div className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50">
+              {logo
+                ? <img src={logo} alt="Logo" className="w-full h-full object-cover" />
+                : <Building size={28} className="text-gray-300" />}
+            </div>
+            {logo
+              ? <button onClick={() => setLogo(null)} className="text-xs text-red-500 hover:underline">Remover logo</button>
+              : <label className="text-xs text-blue-600 hover:underline cursor-pointer">
+                  Adicionar logo
+                  <input type="file" accept="image/*" className="hidden" onChange={handleLogo} />
+                </label>}
+          </div>
+        </div>
+      </div>
+
+      {/* Endereço */}
+      <div>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Endereço</p>
+        <div className="space-y-3">
+          <div className="grid grid-cols-4 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">* CEP</label>
+              <input className="input w-full" placeholder="00000-000" />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">* Endereço</label>
+              <input className="input w-full" placeholder="Rua, Avenida..." />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">* Número</label>
+              <input className="input w-full" placeholder="123" />
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Complemento</label>
+              <input className="input w-full" placeholder="Sala, andar..." />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">* Bairro</label>
+              <input className="input w-full" placeholder="Bairro" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">* Cidade</label>
+              <input className="input w-full" placeholder="São Paulo" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">* Estado</label>
+              <select className="input w-full">
+                {['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'].map(uf => (
+                  <option key={uf}>{uf}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recursos + Contabilidade */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="border border-gray-100 rounded-2xl p-5">
+          <p className="font-medium text-gray-800 mb-4">Recursos</p>
+          <div className="space-y-0 divide-y divide-gray-50">
+            <Toggle label="Listar pacientes aguardando" desc="Exibe na lateral da agenda os pacientes na sala de espera" defaultChecked />
+            <Toggle label="Pesquisa de satisfação" desc="Envia pesquisa de 0 a 10 após o atendimento via WhatsApp" />
+          </div>
+        </div>
+        <div className="border border-gray-100 rounded-2xl p-5">
+          <p className="font-medium text-gray-800 mb-4">Contabilidade</p>
+          <p className="text-sm text-gray-600 mb-3">Emitir recibos</p>
+          <div className="space-y-3">
+            {(['dentista', 'clinica'] as const).map(opt => (
+              <label key={opt} className="flex items-center gap-2.5 cursor-pointer">
+                <input type="radio" name="recibo" value={opt} checked={recibo === opt} onChange={() => setRecibo(opt)}
+                  className="accent-blue-600" />
+                <span className="text-sm text-gray-700">
+                  {opt === 'dentista' ? 'Em nome do dentista' : 'Em nome da clínica'}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function ConfiguracoesPage() {
   const [secaoAtiva,  setSecaoAtiva]  = useState<Secao>('convenios')
   const [salvando,    setSalvando]    = useState(false)
@@ -375,32 +517,7 @@ export function ConfiguracoesPage() {
 
           {secaoAtiva === 'mensagens' && <MensagensSecao />}
 
-          {secaoAtiva === 'clinica' && (
-            <>
-              <FieldGroup label="Dados do consultório">
-                <Field label="Nome / Razão social" placeholder="Ex: Dra. Lorena Coutinho Odontologia" defaultValue="Consultório Dra. Lorena Coutinho" />
-                <Field label="CNPJ" placeholder="00.000.000/0001-00" />
-                <Field label="Inscrição municipal" placeholder="Número de inscrição municipal" />
-                <Field label="Código de serviço (NFS-e)" placeholder="Ex: 8630" defaultValue="8630" />
-              </FieldGroup>
-              <FieldGroup label="Endereço">
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Rua" placeholder="Nome da rua" />
-                  <Field label="Número" placeholder="123" />
-                  <Field label="Bairro" placeholder="Bairro" />
-                  <Field label="CEP" placeholder="00000-000" />
-                  <Field label="Cidade" placeholder="São Paulo" />
-                  <Field label="Estado" placeholder="SP" />
-                </div>
-              </FieldGroup>
-              <FieldGroup label="Contato">
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Telefone/WhatsApp" placeholder="(11) 99999-9999" />
-                  <Field label="E-mail" type="email" placeholder="contato@clinica.com.br" />
-                </div>
-              </FieldGroup>
-            </>
-          )}
+          {secaoAtiva === 'clinica' && <ClinicaSecao />}
 
           {secaoAtiva === 'profissionais' && (
             <>
