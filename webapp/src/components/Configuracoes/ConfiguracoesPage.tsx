@@ -1,22 +1,25 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Save, User, Building, Webhook, Bell, Shield, ChevronRight, Plus, Pencil, Trash2, X } from 'lucide-react'
+import { Save, User, Building, Bell, Shield, ChevronRight, Plus, Pencil, Trash2, X, FileText, MessageSquare, CreditCard, Stethoscope } from 'lucide-react'
 import clsx from 'clsx'
 import { supabase } from '@/lib/supabase'
 
-type Secao = 'clinica' | 'profissionais' | 'integracoes' | 'notificacoes' | 'seguranca'
+type Secao = 'convenios' | 'anamneses' | 'mensagens' | 'clinica' | 'profissionais' | 'taxas'
 
 const secoes: { id: Secao; label: string; icon: React.ElementType; desc: string }[] = [
-  { id: 'clinica',        label: 'Clínica',         icon: Building, desc: 'Dados do consultório, endereço e fiscal' },
-  { id: 'profissionais',  label: 'Profissionais',    icon: User,     desc: 'Cadastro de dentistas e especialidades' },
-  { id: 'integracoes',    label: 'Integrações',      icon: Webhook,  desc: 'n8n, Evolution API, Supabase, Instagram' },
-  { id: 'notificacoes',   label: 'Notificações',     icon: Bell,     desc: 'Lembretes automáticos e alertas' },
-  { id: 'seguranca',      label: 'Segurança',        icon: Shield,   desc: 'Senha, acesso e backup de dados' },
+  { id: 'convenios',     label: 'Convênios',      icon: Stethoscope,    desc: 'Planos e convênios odontológicos aceitos' },
+  { id: 'anamneses',     label: 'Anamneses',       icon: FileText,       desc: 'Modelos e perguntas do formulário' },
+  { id: 'mensagens',     label: 'Mensagens',       icon: MessageSquare,  desc: 'Templates de WhatsApp e lembretes' },
+  { id: 'clinica',       label: 'Clínica',         icon: Building,       desc: 'Dados do consultório, endereço e fiscal' },
+  { id: 'profissionais', label: 'Profissional',    icon: User,           desc: 'Cadastro de dentistas e especialidades' },
+  { id: 'taxas',         label: 'Taxas maquininha',icon: CreditCard,     desc: 'Taxas das operadoras de cartão' },
 ]
 
 interface Dentista { id: string; nome: string; especialidade: string | null; cro: string | null; cor: string; ativo: boolean }
 
 const CORES = ['#3B82F6','#10B981','#8B5CF6','#F59E0B','#EF4444','#EC4899','#14B8A6','#F97316']
+
+interface Convenio { id: string; nome: string; registro: string | null; ativo: boolean }
 
 function DentistaModal({ initial, onClose, onSaved }: {
   initial?: Dentista | null; onClose: () => void; onSaved: (d: Dentista) => void
@@ -121,8 +124,163 @@ function Toggle({ label, desc, defaultChecked }: { label: string; desc: string; 
   )
 }
 
+const BANDEIRAS = [
+  { nome: 'Visa Débito',        taxa: '' },
+  { nome: 'Visa Crédito à vista', taxa: '' },
+  { nome: 'Visa Crédito parcelado', taxa: '' },
+  { nome: 'Mastercard Débito',  taxa: '' },
+  { nome: 'Mastercard Crédito à vista', taxa: '' },
+  { nome: 'Mastercard Crédito parcelado', taxa: '' },
+  { nome: 'Elo Débito',         taxa: '' },
+  { nome: 'Elo Crédito',        taxa: '' },
+  { nome: 'Hipercard',          taxa: '' },
+  { nome: 'American Express',   taxa: '' },
+  { nome: 'Pix',                taxa: '' },
+]
+
+function TaxasMaquininha() {
+  const [taxas, setTaxas] = useState(BANDEIRAS)
+
+  function setTaxa(i: number, val: string) {
+    setTaxas(prev => prev.map((t, idx) => idx === i ? { ...t, taxa: val } : t))
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Taxa por modalidade (%)</p>
+      {taxas.map((t, i) => (
+        <div key={t.nome} className="flex items-center gap-4 py-2.5 border-b border-gray-50 last:border-0">
+          <p className="flex-1 text-sm text-gray-700">{t.nome}</p>
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              value={t.taxa}
+              onChange={e => setTaxa(i, e.target.value)}
+              placeholder="0,00"
+              className="w-20 text-right input py-1.5 text-sm"
+            />
+            <span className="text-sm text-gray-400">%</span>
+          </div>
+        </div>
+      ))}
+      <p className="text-xs text-gray-400 pt-2">As taxas são usadas para calcular o líquido recebido nos relatórios financeiros.</p>
+    </div>
+  )
+}
+
+function ConveniosSecao() {
+  const [convenios, setConvenios] = useState<Convenio[]>([
+    { id: '1', nome: 'Amil Dental', registro: 'ANS 000001', ativo: true },
+    { id: '2', nome: 'Bradesco Dental', registro: 'ANS 000002', ativo: true },
+    { id: '3', nome: 'Odontoprev', registro: 'ANS 000003', ativo: true },
+    { id: '4', nome: 'Particular', registro: null, ativo: true },
+  ])
+  const [novo, setNovo] = useState(false)
+  const [novoNome, setNovoNome] = useState('')
+  const [novoReg, setNovoReg] = useState('')
+
+  function addConvenio() {
+    if (!novoNome.trim()) return
+    setConvenios(prev => [...prev, { id: Date.now().toString(), nome: novoNome.trim(), registro: novoReg || null, ativo: true }])
+    setNovoNome(''); setNovoReg(''); setNovo(false)
+  }
+
+  function removeConvenio(id: string) {
+    setConvenios(prev => prev.filter(c => c.id !== id))
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Convênios e planos aceitos</p>
+        <button onClick={() => setNovo(true)} className="btn-primary text-xs py-1.5 px-3">
+          <Plus size={13} /> Adicionar
+        </button>
+      </div>
+
+      {novo && (
+        <div className="flex gap-2 p-3 bg-blue-50 rounded-xl border border-blue-100">
+          <input value={novoNome} onChange={e => setNovoNome(e.target.value)} placeholder="Nome do convênio *"
+            className="input flex-1 text-sm" autoFocus onKeyDown={e => e.key === 'Enter' && addConvenio()} />
+          <input value={novoReg} onChange={e => setNovoReg(e.target.value)} placeholder="Registro ANS (opcional)"
+            className="input w-44 text-sm" />
+          <button onClick={addConvenio} className="btn-primary text-xs px-3">OK</button>
+          <button onClick={() => { setNovo(false); setNovoNome(''); setNovoReg('') }} className="btn-secondary text-xs px-3">Cancelar</button>
+        </div>
+      )}
+
+      <div className="space-y-1">
+        {convenios.map(c => (
+          <div key={c.id} className="flex items-center gap-3 px-4 py-3 border border-gray-100 rounded-xl hover:border-gray-200 transition-colors">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+              <Stethoscope size={14} className="text-blue-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900">{c.nome}</p>
+              {c.registro && <p className="text-xs text-gray-400">{c.registro}</p>}
+            </div>
+            <button onClick={() => removeConvenio(c.id)} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function MensagensSecao() {
+  const templates = [
+    { key: 'confirmacao', label: 'Confirmação de consulta', desc: 'Enviado 24h antes da consulta' },
+    { key: 'lembrete',    label: 'Lembrete semanal',        desc: 'Segunda-feira às 8h para toda a semana' },
+    { key: 'aniversario', label: 'Parabéns aniversariante', desc: 'Enviado no dia do aniversário' },
+    { key: 'retorno',     label: 'Lembrete de retorno',     desc: 'Para pacientes sem consulta há 6 meses' },
+    { key: 'falta',       label: 'Paciente não compareceu', desc: 'Enviado quando consulta é marcada como falta' },
+  ]
+  const [ativo, setAtivo] = useState(templates[0].key)
+  const [textos, setTextos] = useState<Record<string, string>>({
+    confirmacao: 'Olá, {{nome}}! Lembramos que você tem consulta amanhã, {{data}} às {{hora}}, no Consultório Dra. Lorena Coutinho. Confirme sua presença respondendo SIM. 😊',
+    lembrete:    'Olá, {{nome}}! Você tem consulta essa semana: {{data}} às {{hora}}. Qualquer dúvida, entre em contato. 🦷',
+    aniversario: 'Feliz aniversário, {{nome}}! 🎂 O Consultório Dra. Lorena Coutinho deseja um dia incrível para você!',
+    retorno:     'Olá, {{nome}}! Faz um tempo que não te vemos por aqui. Que tal agendar uma revisão? Entre em contato para marcar sua consulta. 😊',
+    falta:       'Olá, {{nome}}. Notamos que você não compareceu à sua consulta de {{data}}. Gostaria de reagendar? Estamos à disposição.',
+  })
+
+  return (
+    <div className="flex gap-4 min-h-64">
+      <div className="w-52 shrink-0 space-y-1">
+        {templates.map(t => (
+          <button key={t.key} onClick={() => setAtivo(t.key)}
+            className={clsx('w-full text-left px-3 py-2.5 rounded-xl text-sm transition-colors',
+              ativo === t.key ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50')}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div className="flex-1 space-y-2">
+        <div className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
+          Variáveis disponíveis: <code className="text-blue-600">{'{{nome}}'}</code> <code className="text-blue-600">{'{{data}}'}</code> <code className="text-blue-600">{'{{hora}}'}</code> <code className="text-blue-600">{'{{convenio}}'}</code>
+        </div>
+        <textarea
+          rows={7}
+          value={textos[ativo] ?? ''}
+          onChange={e => setTextos(prev => ({ ...prev, [ativo]: e.target.value }))}
+          className="input w-full text-sm resize-none"
+          placeholder="Digite o template da mensagem..."
+        />
+        <div className="flex items-center justify-between">
+          <Toggle label="Ativar envio automático" desc={templates.find(t => t.key === ativo)?.desc ?? ''} defaultChecked />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function ConfiguracoesPage() {
-  const [secaoAtiva,  setSecaoAtiva]  = useState<Secao>('clinica')
+  const [secaoAtiva,  setSecaoAtiva]  = useState<Secao>('convenios')
   const [salvando,    setSalvando]    = useState(false)
   const [dentistas,   setDentistas]   = useState<Dentista[]>([])
   const [showModal,   setShowModal]   = useState(false)
@@ -192,10 +350,35 @@ export function ConfiguracoesPage() {
         {/* Conteúdo */}
         <div className="flex-1 card p-6 space-y-6">
 
+          {secaoAtiva === 'convenios' && <ConveniosSecao />}
+
+          {secaoAtiva === 'anamneses' && (
+            <>
+              <FieldGroup label="Configurações do formulário">
+                <Toggle label="Exigir assinatura digital" desc="Paciente deve assinar o formulário ao enviar" defaultChecked />
+                <Toggle label="Enviar link por WhatsApp" desc="Envia link da anamnese ao confirmar agendamento" defaultChecked />
+                <Toggle label="Reenviar anamnese a cada consulta" desc="Pede nova anamnese sempre que agendar consulta" />
+                <Toggle label="Permitir edição pelo paciente" desc="Paciente pode atualizar respostas mesmo após envio" />
+              </FieldGroup>
+              <FieldGroup label="Validade do link">
+                <div className="flex items-center gap-3">
+                  <input type="number" defaultValue={72} className="input w-24 text-sm" />
+                  <span className="text-sm text-gray-500">horas após o envio</span>
+                </div>
+              </FieldGroup>
+              <FieldGroup label="Mensagem de envio">
+                <textarea rows={4} defaultValue="Olá, {{nome}}! Para confirmar sua consulta, preencha sua anamnese clicando no link abaixo. O preenchimento leva menos de 2 minutos. 🦷"
+                  className="input w-full text-sm resize-none" />
+              </FieldGroup>
+            </>
+          )}
+
+          {secaoAtiva === 'mensagens' && <MensagensSecao />}
+
           {secaoAtiva === 'clinica' && (
             <>
               <FieldGroup label="Dados do consultório">
-                <Field label="Razão social" placeholder="Ex: Dra. Ana Silva Odontologia LTDA" defaultValue="Clínica Odontológica" />
+                <Field label="Nome / Razão social" placeholder="Ex: Dra. Lorena Coutinho Odontologia" defaultValue="Consultório Dra. Lorena Coutinho" />
                 <Field label="CNPJ" placeholder="00.000.000/0001-00" />
                 <Field label="Inscrição municipal" placeholder="Número de inscrição municipal" />
                 <Field label="Código de serviço (NFS-e)" placeholder="Ex: 8630" defaultValue="8630" />
@@ -268,61 +451,8 @@ export function ConfiguracoesPage() {
             </>
           )}
 
-          {secaoAtiva === 'integracoes' && (
-            <>
-              <FieldGroup label="Supabase">
-                <Field label="URL do projeto" placeholder="https://xxx.supabase.co" />
-                <Field label="Chave anônima (anon key)" placeholder="eyJ..." type="password" />
-              </FieldGroup>
-              <FieldGroup label="n8n (automações)">
-                <Field label="URL do n8n" placeholder="http://localhost:5678" defaultValue="http://localhost:5678" />
-                <Field label="Webhook — Prescrição/Laudo" placeholder="https://n8n.local/webhook/prescricao" />
-                <Field label="Webhook — Nota Fiscal" placeholder="https://n8n.local/webhook/nota-fiscal" />
-              </FieldGroup>
-              <FieldGroup label="Evolution API (WhatsApp)">
-                <Field label="URL da Evolution API" placeholder="http://localhost:8080" defaultValue="http://localhost:8080" />
-                <Field label="API Key" type="password" placeholder="Chave de autenticação" />
-                <Field label="Instância" placeholder="nome-da-instancia" />
-              </FieldGroup>
-              <FieldGroup label="Instagram (Meta Graph API)">
-                <Field label="Access Token" type="password" placeholder="Token de longa duração" />
-                <Field label="Instagram User ID" placeholder="1234567890" />
-              </FieldGroup>
-            </>
-          )}
+          {secaoAtiva === 'taxas' && <TaxasMaquininha />}
 
-          {secaoAtiva === 'notificacoes' && (
-            <div className="divide-y divide-gray-50">
-              <Toggle label="Confirmação de consulta semanal" desc="Envia WhatsApp segunda-feira às 8h para pacientes da semana" defaultChecked />
-              <Toggle label="Lembrete 24h antes" desc="Avisa o paciente um dia antes da consulta" defaultChecked />
-              <Toggle label="Aniversariantes do mês" desc="Parabeniza pacientes no dia do aniversário" defaultChecked />
-              <Toggle label="Retorno semestral" desc="Lembrete para pacientes sem consulta há 6 meses" />
-              <Toggle label="Alerta de inadimplência" desc="Notifica consultas não comparecidas" defaultChecked />
-              <Toggle label="Notificação de nova mensagem" desc="Alerta no painel ao receber mensagem no WhatsApp" defaultChecked />
-            </div>
-          )}
-
-          {secaoAtiva === 'seguranca' && (
-            <>
-              <FieldGroup label="Alterar senha">
-                <Field label="Senha atual" type="password" placeholder="••••••••" />
-                <Field label="Nova senha" type="password" placeholder="••••••••" />
-                <Field label="Confirmar nova senha" type="password" placeholder="••••••••" />
-              </FieldGroup>
-              <FieldGroup label="Backup de dados">
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">Backup automático no Supabase</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Dados protegidos com replicação em tempo real</p>
-                  </div>
-                  <span className="badge badge-green">Ativo</span>
-                </div>
-                <button className="btn-secondary text-sm w-full justify-center">
-                  Exportar todos os dados (CSV)
-                </button>
-              </FieldGroup>
-            </>
-          )}
         </div>
       </div>
 

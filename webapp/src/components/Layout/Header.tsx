@@ -1,6 +1,6 @@
 'use client'
 import { useRouter } from 'next/navigation'
-import { Bell, Search, MessageSquare, CheckSquare, LogOut, X, User } from 'lucide-react'
+import { Bell, Search, Settings, CheckSquare, LogOut, X, User } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useState, useEffect, useRef } from 'react'
 
@@ -125,7 +125,7 @@ export function Header() {
         <div className="flex items-center gap-1">
           <button
             onClick={() => setBuscaAberta(true)}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors relative"
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
             title="Buscar paciente"
           >
             <Search size={18} />
@@ -134,8 +134,12 @@ export function Header() {
             <Bell size={18} />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
           </button>
-          <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
-            <MessageSquare size={18} />
+          <button
+            onClick={() => router.push('/configuracoes')}
+            title="Configurações"
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+          >
+            <Settings size={18} />
           </button>
           <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
             <CheckSquare size={18} />
