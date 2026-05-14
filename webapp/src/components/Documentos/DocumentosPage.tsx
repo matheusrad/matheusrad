@@ -1,27 +1,83 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Plus, Search, Printer, X, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { FileText, Plus, Search, Printer, X, Trash2, ChevronDown, Check, Send } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import clsx from 'clsx'
 import { useRouter } from 'next/navigation'
 
+// ─── banco de medicamentos ────────────────────────────────────────────────────
+
+const MEDICAMENTOS: { nome: string; posologia: string; controlado?: boolean }[] = [
+  { nome: 'Amoxicilina 500mg',                    posologia: '1 cápsula de 8 em 8 horas por 7 dias' },
+  { nome: 'Amoxicilina 875mg + Clavulanato 125mg', posologia: '1 comprimido de 12 em 12 horas por 7 dias' },
+  { nome: 'Azitromicina 500mg',                   posologia: '1 comprimido 1 vez ao dia por 3 dias' },
+  { nome: 'Cefalexina 500mg',                     posologia: '1 cápsula de 6 em 6 horas por 7 dias' },
+  { nome: 'Clindamicina 300mg',                   posologia: '1 cápsula de 8 em 8 horas por 7 dias' },
+  { nome: 'Metronidazol 400mg',                   posologia: '1 comprimido de 8 em 8 horas por 7 dias' },
+  { nome: 'Nimesulida 100mg',                     posologia: '1 comprimido de 12 em 12 horas por 3 a 5 dias (após as refeições)' },
+  { nome: 'Ibuprofeno 600mg',                     posologia: '1 comprimido de 8 em 8 horas por 3 a 5 dias (após as refeições)' },
+  { nome: 'Dipirona 500mg',                       posologia: '1 a 2 comprimidos de 6 em 6 horas se dor (máx. 4 doses/dia)' },
+  { nome: 'Paracetamol 750mg',                    posologia: '1 comprimido de 6 em 6 horas se dor (máx. 4 doses/dia)' },
+  { nome: 'Dexametasona 4mg',                     posologia: '1 comprimido de 12 em 12 horas por 2 dias, iniciando no dia da cirurgia' },
+  { nome: 'Betametasona 0,5mg',                   posologia: '1 comprimido de 12 em 12 horas por 3 dias' },
+  { nome: 'Clorexidina 0,12% (solução)',           posologia: 'Bochecho de 15ml por 30 segundos de 12 em 12 horas por 10 dias' },
+  { nome: 'Nistatina suspensão oral 100.000UI/mL', posologia: '1mL (pingue sobre a lesão) 4 vezes ao dia por 10 dias' },
+  { nome: 'Tramadol 50mg',                        posologia: '1 cápsula de 6 em 6 horas se dor intensa', controlado: true },
+  { nome: 'Codeína 30mg + Paracetamol 500mg',     posologia: '1 comprimido de 6 em 6 horas se dor', controlado: true },
+  { nome: 'Clonazepam 0,5mg',                     posologia: '1 comprimido 1 hora antes do procedimento (uso único)', controlado: true },
+  { nome: 'Midazolam 7,5mg',                      posologia: '1 comprimido 30 minutos antes do procedimento (uso único)', controlado: true },
+]
+
+// ─── banco de exames por categoria ───────────────────────────────────────────
+
+const CATEGORIAS_EXAME = [
+  {
+    nome: 'Radiografia',
+    exames: [
+      { nome: 'Radiografia periapical',                desc: 'Região: ___' },
+      { nome: 'Radiografia interproximal (bite-wing)', desc: 'Lados: direito / esquerdo' },
+      { nome: 'Radiografia panorâmica',                desc: '' },
+      { nome: 'Telerradiografia de perfil',            desc: '' },
+      { nome: 'Radiografia oclusal',                   desc: 'Região: ___' },
+    ],
+  },
+  {
+    nome: 'Tomografia',
+    exames: [
+      { nome: 'Tomografia computadorizada (CBCT) – parcial', desc: 'Região: ___' },
+      { nome: 'Tomografia computadorizada (CBCT) – total',   desc: '' },
+      { nome: 'Tomografia de ATM bilateral',                 desc: '' },
+    ],
+  },
+  {
+    nome: 'Laboratorial',
+    exames: [
+      { nome: 'Hemograma completo',     desc: '' },
+      { nome: 'Coagulograma (TP, TTPA)', desc: '' },
+      { nome: 'Glicemia em jejum',       desc: '' },
+      { nome: 'Proteína C-reativa (PCR)', desc: '' },
+      { nome: 'VHS',                     desc: '' },
+      { nome: 'Cultura e antibiograma',  desc: 'Material: ___' },
+    ],
+  },
+]
+
 // ─── tipos ────────────────────────────────────────────────────────────────────
 
 type TipoDoc = 'receituario' | 'receituario_especial' | 'atestado' | 'pedido_exame'
 
 const TIPOS: { id: TipoDoc; label: string; desc: string; cor: string }[] = [
-  { id: 'receituario',          label: 'Receituário simples',   desc: 'Medicamentos e posologia',                    cor: 'bg-blue-50 border-blue-200 text-blue-700' },
-  { id: 'receituario_especial', label: 'Receituário especial',  desc: 'Medicamentos controlados (2 vias)',            cor: 'bg-purple-50 border-purple-200 text-purple-700' },
-  { id: 'atestado',             label: 'Atestado',              desc: 'Comparecimento ou incapacidade',              cor: 'bg-green-50 border-green-200 text-green-700' },
-  { id: 'pedido_exame',         label: 'Pedido de exame',       desc: 'Raio-X, tomografia, laboratorial',            cor: 'bg-amber-50 border-amber-200 text-amber-700' },
+  { id: 'receituario',          label: 'Receituário simples',  desc: 'Medicamentos e posologia',         cor: 'bg-blue-50 border-blue-200 text-blue-700' },
+  { id: 'receituario_especial', label: 'Receituário especial', desc: 'Medicamentos controlados (2 vias)', cor: 'bg-purple-50 border-purple-200 text-purple-700' },
+  { id: 'atestado',             label: 'Atestado',             desc: 'Comparecimento ou incapacidade',   cor: 'bg-green-50 border-green-200 text-green-700' },
+  { id: 'pedido_exame',         label: 'Pedido de exame',      desc: 'Raio-X, tomografia, laboratorial', cor: 'bg-amber-50 border-amber-200 text-amber-700' },
 ]
 
 interface Medicamento { nome: string; posologia: string }
+interface ExameSelecionado { nome: string; desc: string }
 interface DocRow { id: string; tipo: TipoDoc; paciente_nome: string | null; numero_documento: string | null; conteudo_texto: string | null; created_at: string }
-
-// ─── helpers ──────────────────────────────────────────────────────────────────
 
 function badgeColor(tipo: TipoDoc) {
   switch (tipo) {
@@ -32,31 +88,93 @@ function badgeColor(tipo: TipoDoc) {
   }
 }
 
-function tipoLabel(tipo: TipoDoc) {
-  return TIPOS.find(t => t.id === tipo)?.label ?? tipo
-}
-
+function tipoLabel(tipo: TipoDoc) { return TIPOS.find(t => t.id === tipo)?.label ?? tipo }
 function gerarNumero(tipo: TipoDoc) {
-  const prefix = { receituario: 'RS', receituario_especial: 'RE', atestado: 'AT', pedido_exame: 'PE' }[tipo]
-  return `${prefix}-${Date.now().toString().slice(-6)}`
+  const p = { receituario: 'RS', receituario_especial: 'RE', atestado: 'AT', pedido_exame: 'PE' }[tipo]
+  return `${p}-${Date.now().toString().slice(-6)}`
 }
 
-// ─── sub-formulários ──────────────────────────────────────────────────────────
+// ─── autocomplete de medicamento ──────────────────────────────────────────────
+
+function MedicamentoInput({ index, med, controlado, onChange, onRemove, showRemove }: {
+  index: number; med: Medicamento; controlado?: boolean
+  onChange: (m: Medicamento) => void; onRemove: () => void; showRemove: boolean
+}) {
+  const [query, setQuery]   = useState(med.nome)
+  const [open,  setOpen]    = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  const filtrados = MEDICAMENTOS.filter(m =>
+    (!controlado || m.controlado) &&
+    (controlado || !m.controlado) &&
+    m.nome.toLowerCase().includes(query.toLowerCase())
+  ).slice(0, 8)
+
+  function select(m: typeof MEDICAMENTOS[0]) {
+    setQuery(m.nome)
+    onChange({ nome: m.nome, posologia: m.posologia })
+    setOpen(false)
+  }
+
+  useEffect(() => {
+    function handler(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  return (
+    <div className="border border-gray-100 rounded-xl p-3 space-y-2 bg-gray-50/50">
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-bold text-gray-400 w-5 shrink-0">{index + 1}.</span>
+        <div ref={ref} className="flex-1 relative">
+          <input
+            className="input w-full text-sm"
+            placeholder="Buscar medicamento..."
+            value={query}
+            onChange={e => { setQuery(e.target.value); onChange({ nome: e.target.value, posologia: med.posologia }); setOpen(true) }}
+            onFocus={() => setOpen(true)}
+          />
+          {open && filtrados.length > 0 && (
+            <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden">
+              {filtrados.map(m => (
+                <button key={m.nome} type="button" onMouseDown={() => select(m)}
+                  className="w-full text-left px-3 py-2.5 text-sm hover:bg-blue-50 border-b border-gray-50 last:border-0">
+                  <p className="font-medium text-gray-800">{m.nome}</p>
+                  <p className="text-xs text-gray-400 truncate">{m.posologia}</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {showRemove && (
+          <button type="button" onClick={onRemove} className="p-1 text-gray-300 hover:text-red-500 rounded shrink-0">
+            <X size={14} />
+          </button>
+        )}
+      </div>
+      <textarea
+        className="input w-full text-sm resize-none ml-7"
+        rows={2}
+        placeholder="Posologia: dose, frequência e duração..."
+        value={med.posologia}
+        onChange={e => onChange({ nome: med.nome, posologia: e.target.value })}
+      />
+    </div>
+  )
+}
+
+// ─── formulário receituário ───────────────────────────────────────────────────
 
 function ReceituarioForm({ especial, onChange }: { especial?: boolean; onChange: (d: object) => void }) {
-  const [meds, setMeds] = useState<Medicamento[]>([{ nome: '', posologia: '' }])
-  const [obs, setObs]   = useState('')
+  const [meds,  setMeds]  = useState<Medicamento[]>([{ nome: '', posologia: '' }])
+  const [obs,   setObs]   = useState('')
   const [notif, setNotif] = useState('')
 
-  function update(newMeds = meds, newObs = obs, newNotif = notif) {
-    onChange({ medicamentos: newMeds, observacoes: newObs, ...(especial ? { numero_notificacao: newNotif } : {}) })
+  function update(m = meds, o = obs, n = notif) {
+    onChange({ medicamentos: m, observacoes: o, ...(especial ? { numero_notificacao: n } : {}) })
   }
 
-  function setMed(i: number, field: keyof Medicamento, val: string) {
-    const next = meds.map((m, idx) => idx === i ? { ...m, [field]: val } : m)
-    setMeds(next); update(next)
-  }
-
+  function setMed(i: number, val: Medicamento) { const next = meds.map((m, idx) => idx === i ? val : m); setMeds(next); update(next) }
   function addMed() { const next = [...meds, { nome: '', posologia: '' }]; setMeds(next); update(next) }
   function removeMed(i: number) { const next = meds.filter((_, idx) => idx !== i); setMeds(next); update(next) }
 
@@ -65,7 +183,7 @@ function ReceituarioForm({ especial, onChange }: { especial?: boolean; onChange:
       {especial && (
         <div>
           <label className="label">Nº de notificação</label>
-          <input className="input" placeholder="Número da notificação de receita" value={notif}
+          <input className="input" placeholder="Número da notificação de receita especial" value={notif}
             onChange={e => { setNotif(e.target.value); update(meds, obs, e.target.value) }} />
         </div>
       )}
@@ -78,38 +196,29 @@ function ReceituarioForm({ especial, onChange }: { especial?: boolean; onChange:
         </div>
         <div className="space-y-2">
           {meds.map((m, i) => (
-            <div key={i} className="border border-gray-100 rounded-xl p-3 space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-gray-400 w-4">{i + 1}.</span>
-                <input className="input flex-1 text-sm" placeholder="Nome do medicamento e concentração" value={m.nome}
-                  onChange={e => setMed(i, 'nome', e.target.value)} />
-                {meds.length > 1 && (
-                  <button type="button" onClick={() => removeMed(i)} className="p-1 text-gray-300 hover:text-red-500 rounded">
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
-              <textarea className="input w-full text-sm resize-none" rows={2} placeholder="Posologia: ex. 1 cápsula de 8/8h por 7 dias"
-                value={m.posologia} onChange={e => setMed(i, 'posologia', e.target.value)} />
-            </div>
+            <MedicamentoInput key={i} index={i} med={m} controlado={especial}
+              onChange={val => setMed(i, val)} onRemove={() => removeMed(i)} showRemove={meds.length > 1} />
           ))}
         </div>
       </div>
       <div>
         <label className="label">Observações (opcional)</label>
-        <textarea className="input w-full resize-none text-sm" rows={2} placeholder="Recomendações adicionais..." value={obs}
+        <textarea className="input w-full resize-none text-sm" rows={2}
+          placeholder="Ex: Tomar com alimento. Não interromper o tratamento." value={obs}
           onChange={e => { setObs(e.target.value); update(meds, e.target.value) }} />
       </div>
     </div>
   )
 }
 
+// ─── formulário atestado ──────────────────────────────────────────────────────
+
 function AtestadoForm({ onChange }: { onChange: (d: object) => void }) {
-  const [tipoAt, setTipoAt] = useState<'comparecimento' | 'incapacidade'>('comparecimento')
-  const [data,   setData]   = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [tipoAt, setTipoAt]   = useState<'comparecimento' | 'incapacidade'>('comparecimento')
+  const [data,   setData]     = useState(format(new Date(), 'yyyy-MM-dd'))
   const [duracao, setDuracao] = useState('')
-  const [cid,    setCid]    = useState('')
-  const [obs,    setObs]    = useState('')
+  const [cid,    setCid]      = useState('')
+  const [obs,    setObs]      = useState('')
 
   function update(t = tipoAt, d = data, dur = duracao, c = cid, o = obs) {
     onChange({ tipo: t, data_consulta: d, duracao: dur, cid: c, observacoes: o })
@@ -122,7 +231,7 @@ function AtestadoForm({ onChange }: { onChange: (d: object) => void }) {
         <div className="flex gap-2">
           {(['comparecimento', 'incapacidade'] as const).map(t => (
             <button key={t} type="button" onClick={() => { setTipoAt(t); update(t) }}
-              className={clsx('flex-1 py-2.5 text-sm font-medium rounded-xl border transition-colors capitalize',
+              className={clsx('flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-colors',
                 tipoAt === t ? 'bg-blue-50 border-blue-400 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-gray-300')}>
               {t === 'comparecimento' ? 'Comparecimento' : 'Incapacidade'}
             </button>
@@ -135,14 +244,15 @@ function AtestadoForm({ onChange }: { onChange: (d: object) => void }) {
           <input type="date" className="input" value={data} onChange={e => { setData(e.target.value); update(tipoAt, e.target.value) }} />
         </div>
         <div>
-          <label className="label">{tipoAt === 'comparecimento' ? 'Duração (ex: 2 horas)' : 'Período (ex: 3 dias)'}</label>
+          <label className="label">{tipoAt === 'comparecimento' ? 'Duração (ex: 2 horas)' : 'Afastamento (ex: 3 dias)'}</label>
           <input className="input" placeholder={tipoAt === 'comparecimento' ? '2 horas' : '3 dias'} value={duracao}
             onChange={e => { setDuracao(e.target.value); update(tipoAt, data, e.target.value) }} />
         </div>
       </div>
       <div>
         <label className="label">CID (opcional)</label>
-        <input className="input" placeholder="Ex: K08.8" value={cid} onChange={e => { setCid(e.target.value); update(tipoAt, data, duracao, e.target.value) }} />
+        <input className="input" placeholder="Ex: K08.8 – Outros transtornos dos dentes" value={cid}
+          onChange={e => { setCid(e.target.value); update(tipoAt, data, duracao, e.target.value) }} />
       </div>
       <div>
         <label className="label">Observações (opcional)</label>
@@ -153,64 +263,129 @@ function AtestadoForm({ onChange }: { onChange: (d: object) => void }) {
   )
 }
 
-const EXAMES = [
-  'Radiografia periapical', 'Radiografia interproximal (bite-wing)',
-  'Panorâmica', 'Telerradiografia', 'Tomografia computadorizada (CBCT)',
-  'Hemograma completo', 'Coagulograma', 'Glicemia em jejum',
-  'Proteína C-reativa', 'VHS', 'Cultura e antibiograma',
-]
+// ─── formulário pedido de exame ───────────────────────────────────────────────
 
 function PedidoExameForm({ onChange }: { onChange: (d: object) => void }) {
-  const [exames, setExames]       = useState<string[]>([''])
-  const [indicacao, setIndicacao] = useState('')
-  const [urgente, setUrgente]     = useState(false)
+  const [aba, setAba]                   = useState(0)
+  const [selecionados, setSelecionados] = useState<ExameSelecionado[]>([])
+  const [livres, setLivres]             = useState<{ titulo: string; descricao: string }[]>([])
+  const [indicacao, setIndicacao]       = useState('')
+  const [urgente, setUrgente]           = useState(false)
 
-  function update(e = exames, ind = indicacao, urg = urgente) {
-    onChange({ exames: e.filter(Boolean), indicacao: ind, urgente: urg })
+  function update(s = selecionados, l = livres, ind = indicacao, urg = urgente) {
+    const exames = [
+      ...s.map(e => ({ nome: e.nome, descricao: e.desc })),
+      ...l.filter(e => e.titulo).map(e => ({ nome: e.titulo, descricao: e.descricao })),
+    ]
+    onChange({ exames, indicacao: ind, urgente: urg })
   }
 
-  function setExame(i: number, val: string) {
-    const next = exames.map((ex, idx) => idx === i ? val : ex); setExames(next); update(next)
+  function toggleExame(nome: string, desc: string) {
+    const existe = selecionados.find(e => e.nome === nome)
+    const next = existe ? selecionados.filter(e => e.nome !== nome) : [...selecionados, { nome, desc }]
+    setSelecionados(next); update(next)
   }
 
-  function addExame() { const next = [...exames, '']; setExames(next); update(next) }
-  function removeExame(i: number) { const next = exames.filter((_, idx) => idx !== i); setExames(next); update(next) }
+  function setDescricao(nome: string, val: string) {
+    const next = selecionados.map(e => e.nome === nome ? { ...e, desc: val } : e)
+    setSelecionados(next); update(next)
+  }
+
+  function addLivre() { const next = [...livres, { titulo: '', descricao: '' }]; setLivres(next); update(selecionados, next) }
+  function setLivre(i: number, field: 'titulo' | 'descricao', val: string) {
+    const next = livres.map((l, idx) => idx === i ? { ...l, [field]: val } : l)
+    setLivres(next); update(selecionados, next)
+  }
+  function removeLivre(i: number) { const next = livres.filter((_, idx) => idx !== i); setLivres(next); update(selecionados, next) }
 
   return (
     <div className="space-y-4">
+      {/* Abas de categoria */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="label mb-0">Exames solicitados</label>
-          <button type="button" onClick={addExame} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-            <Plus size={12} /> Adicionar exame
-          </button>
-        </div>
-        <div className="space-y-2">
-          {exames.map((ex, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-gray-400 w-4">{i + 1}.</span>
-              <input list="exames-lista" className="input flex-1 text-sm" placeholder="Nome do exame" value={ex}
-                onChange={e => setExame(i, e.target.value)} />
-              {exames.length > 1 && (
-                <button type="button" onClick={() => removeExame(i)} className="p-1 text-gray-300 hover:text-red-500 rounded">
-                  <X size={14} />
-                </button>
-              )}
-            </div>
+        <label className="label">Selecione os exames</label>
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5 mb-3">
+          {[...CATEGORIAS_EXAME.map(c => c.nome), 'Texto livre'].map((nome, i) => (
+            <button key={nome} type="button" onClick={() => setAba(i)}
+              className={clsx('flex-1 py-1.5 text-xs font-medium rounded-md transition-colors',
+                aba === i ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-700')}>
+              {nome}
+            </button>
           ))}
-          <datalist id="exames-lista">
-            {EXAMES.map(e => <option key={e} value={e} />)}
-          </datalist>
         </div>
+
+        {/* Lista de exames da categoria */}
+        {aba < CATEGORIAS_EXAME.length && (
+          <div className="space-y-1.5">
+            {CATEGORIAS_EXAME[aba].exames.map(exame => {
+              const sel = selecionados.find(e => e.nome === exame.nome)
+              return (
+                <div key={exame.nome} className="space-y-1">
+                  <label className={clsx('flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors',
+                    sel ? 'bg-blue-50 border-blue-200' : 'border-gray-100 hover:border-gray-200')}>
+                    <div onClick={() => toggleExame(exame.nome, exame.desc)}
+                      className={clsx('w-5 h-5 rounded flex items-center justify-center border-2 shrink-0 transition-colors',
+                        sel ? 'bg-blue-600 border-blue-600' : 'border-gray-300')}>
+                      {sel && <Check size={12} className="text-white" />}
+                    </div>
+                    <span className="text-sm text-gray-800 flex-1" onClick={() => toggleExame(exame.nome, exame.desc)}>
+                      {exame.nome}
+                    </span>
+                  </label>
+                  {sel && exame.desc && (
+                    <input className="input text-sm ml-8" placeholder={`Detalhe: ${exame.desc}`}
+                      value={sel.desc} onChange={e => setDescricao(exame.nome, e.target.value)} />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Texto livre */}
+        {aba === CATEGORIAS_EXAME.length && (
+          <div className="space-y-2">
+            {livres.map((l, i) => (
+              <div key={i} className="border border-gray-100 rounded-xl p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input className="input flex-1 text-sm" placeholder="Título do exame" value={l.titulo}
+                    onChange={e => setLivre(i, 'titulo', e.target.value)} />
+                  <button type="button" onClick={() => removeLivre(i)} className="p-1 text-gray-300 hover:text-red-500 rounded">
+                    <X size={14} />
+                  </button>
+                </div>
+                <textarea className="input w-full text-sm resize-none" rows={2}
+                  placeholder="Descrição / local anatômico / detalhes..." value={l.descricao}
+                  onChange={e => setLivre(i, 'descricao', e.target.value)} />
+              </div>
+            ))}
+            <button type="button" onClick={addLivre} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+              <Plus size={12} /> Adicionar exame personalizado
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Resumo selecionados */}
+      {selecionados.length > 0 && (
+        <div className="bg-blue-50 rounded-xl px-4 py-3">
+          <p className="text-xs font-semibold text-blue-700 mb-1.5">{selecionados.length} exame(s) selecionado(s)</p>
+          <ul className="space-y-0.5">
+            {selecionados.map(e => <li key={e.nome} className="text-xs text-blue-600">• {e.nome}</li>)}
+          </ul>
+        </div>
+      )}
+
       <div>
         <label className="label">Indicação clínica / Justificativa</label>
-        <textarea className="input w-full resize-none text-sm" rows={3} placeholder="Descreva a indicação clínica..." value={indicacao}
-          onChange={e => { setIndicacao(e.target.value); update(exames, e.target.value) }} />
+        <textarea className="input w-full resize-none text-sm" rows={3}
+          placeholder="Descreva a indicação clínica para os exames solicitados..." value={indicacao}
+          onChange={e => { setIndicacao(e.target.value); update(selecionados, livres, e.target.value) }} />
       </div>
+
       <label className="flex items-center gap-2 cursor-pointer">
-        <input type="checkbox" checked={urgente} onChange={e => { setUrgente(e.target.checked); update(exames, indicacao, e.target.checked) }} className="accent-blue-600" />
-        <span className="text-sm text-gray-700">Urgente</span>
+        <input type="checkbox" checked={urgente} className="accent-blue-600"
+          onChange={e => { setUrgente(e.target.checked); update(selecionados, livres, indicacao, e.target.checked) }} />
+        <span className="text-sm font-medium text-gray-700">Marcar como urgente</span>
       </label>
     </div>
   )
@@ -219,12 +394,12 @@ function PedidoExameForm({ onChange }: { onChange: (d: object) => void }) {
 // ─── modal novo documento ─────────────────────────────────────────────────────
 
 function NovoDocModal({ onClose, onSaved }: { onClose: () => void; onSaved: (d: DocRow) => void }) {
-  const [step, setStep]           = useState<1 | 2>(1)
-  const [tipo, setTipo]           = useState<TipoDoc | null>(null)
-  const [paciente, setPaciente]   = useState('')
-  const [dados, setDados]         = useState<object>({})
-  const [saving, setSaving]       = useState(false)
-  const [error, setError]         = useState('')
+  const [step,    setStep]    = useState<1 | 2>(1)
+  const [tipo,    setTipo]    = useState<TipoDoc | null>(null)
+  const [paciente, setPaciente] = useState('')
+  const [dados,   setDados]   = useState<object>({})
+  const [saving,  setSaving]  = useState(false)
+  const [error,   setError]   = useState('')
 
   async function salvar() {
     if (!tipo || !paciente.trim()) { setError('Preencha o nome do paciente.'); return }
@@ -241,9 +416,10 @@ function NovoDocModal({ onClose, onSaved }: { onClose: () => void; onSaved: (d: 
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] flex flex-col">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
           <div>
             <h2 className="font-semibold text-gray-900">Novo documento</h2>
             {tipo && <p className="text-xs text-gray-400 mt-0.5">{tipoLabel(tipo)}</p>}
@@ -251,13 +427,12 @@ function NovoDocModal({ onClose, onSaved }: { onClose: () => void; onSaved: (d: 
           <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"><X size={16} /></button>
         </div>
 
-        <div className="p-6 space-y-5">
-          {/* Passo 1 — escolha do tipo */}
+        <div className="p-6 overflow-y-auto flex-1 space-y-5">
           {step === 1 && (
             <div className="grid grid-cols-2 gap-3">
               {TIPOS.map(t => (
                 <button key={t.id} onClick={() => { setTipo(t.id); setStep(2) }}
-                  className={clsx('text-left p-4 rounded-xl border-2 transition-colors hover:shadow-sm', t.cor)}>
+                  className={clsx('text-left p-4 rounded-xl border-2 transition-all hover:shadow-sm', t.cor)}>
                   <p className="font-semibold text-sm">{t.label}</p>
                   <p className="text-xs mt-0.5 opacity-70">{t.desc}</p>
                 </button>
@@ -265,20 +440,19 @@ function NovoDocModal({ onClose, onSaved }: { onClose: () => void; onSaved: (d: 
             </div>
           )}
 
-          {/* Passo 2 — formulário */}
           {step === 2 && tipo && (
             <>
-              <button onClick={() => { setStep(1); setTipo(null) }} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
+              <button onClick={() => { setStep(1); setTipo(null) }}
+                className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
                 ← Trocar tipo
               </button>
               <div>
                 <label className="label">Nome do paciente *</label>
-                <input className="input" autoFocus placeholder="Nome completo" value={paciente}
+                <input className="input" autoFocus placeholder="Nome completo do paciente" value={paciente}
                   onChange={e => setPaciente(e.target.value)} />
               </div>
-              {(tipo === 'receituario' || tipo === 'receituario_especial') && (
-                <ReceituarioForm especial={tipo === 'receituario_especial'} onChange={setDados} />
-              )}
+              {(tipo === 'receituario' || tipo === 'receituario_especial') &&
+                <ReceituarioForm especial={tipo === 'receituario_especial'} onChange={setDados} />}
               {tipo === 'atestado' && <AtestadoForm onChange={setDados} />}
               {tipo === 'pedido_exame' && <PedidoExameForm onChange={setDados} />}
               {error && <p className="text-sm text-red-600">{error}</p>}
@@ -287,7 +461,7 @@ function NovoDocModal({ onClose, onSaved }: { onClose: () => void; onSaved: (d: 
         </div>
 
         {step === 2 && (
-          <div className="px-6 py-4 border-t border-gray-100 flex gap-3 justify-end sticky bottom-0 bg-white">
+          <div className="px-6 py-4 border-t border-gray-100 flex gap-3 justify-end shrink-0">
             <button onClick={onClose} className="btn-secondary">Cancelar</button>
             <button onClick={salvar} disabled={saving || !paciente.trim()} className="btn-primary disabled:opacity-40">
               {saving ? 'Salvando...' : 'Salvar documento'}
@@ -304,7 +478,7 @@ function NovoDocModal({ onClose, onSaved }: { onClose: () => void; onSaved: (d: 
 type TipoFiltro = 'todos' | TipoDoc
 
 export function DocumentosPage() {
-  const router = useRouter()
+  const router  = useRouter()
   const [filtro,  setFiltro]  = useState<TipoFiltro>('todos')
   const [busca,   setBusca]   = useState('')
   const [docs,    setDocs]    = useState<DocRow[]>([])
@@ -327,6 +501,11 @@ export function DocumentosPage() {
     setDocs(prev => prev.filter(d => d.id !== id))
   }
 
+  function whatsapp(doc: DocRow) {
+    const texto = encodeURIComponent(`Olá! Segue o documento *${tipoLabel(doc.tipo)}* — Nº ${doc.numero_documento ?? ''}. Acesse para visualizar e imprimir.`)
+    window.open(`https://wa.me/?text=${texto}`, '_blank')
+  }
+
   return (
     <div className="max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -336,7 +515,6 @@ export function DocumentosPage() {
         </button>
       </div>
 
-      {/* Filtros */}
       <div className="card mb-4 px-4 py-3 flex items-center gap-3 flex-wrap">
         <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
           {(['todos', ...TIPOS.map(t => t.id)] as TipoFiltro[]).map(t => (
@@ -354,7 +532,6 @@ export function DocumentosPage() {
         </div>
       </div>
 
-      {/* Lista */}
       <div className="card divide-y divide-gray-50">
         {loading ? (
           <div className="p-8 text-center text-sm text-gray-400">Carregando...</div>
@@ -376,12 +553,16 @@ export function DocumentosPage() {
                 </span>
               </div>
               <p className="text-xs text-gray-400 mt-0.5">
-                Nº {doc.numero_documento ?? '—'} · {doc.created_at ? format(parseISO(doc.created_at), "d 'de' MMMM 'de' yyyy", { locale: ptBR }) : ''}
+                Nº {doc.numero_documento ?? '—'} · {doc.created_at
+                  ? format(parseISO(doc.created_at), "d 'de' MMMM 'de' yyyy", { locale: ptBR }) : ''}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => router.push(`/documentos/${doc.id}`)}
-                className="btn-secondary text-xs py-1.5 px-3">
+              <button onClick={() => whatsapp(doc)}
+                className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Enviar via WhatsApp">
+                <Send size={15} />
+              </button>
+              <button onClick={() => router.push(`/documentos/${doc.id}`)} className="btn-secondary text-xs py-1.5 px-3">
                 <Printer size={13} /> Imprimir
               </button>
               <button onClick={() => deletar(doc.id)}
@@ -394,10 +575,7 @@ export function DocumentosPage() {
       </div>
 
       {showModal && (
-        <NovoDocModal
-          onClose={() => setShowModal(false)}
-          onSaved={d => setDocs(prev => [d, ...prev])}
-        />
+        <NovoDocModal onClose={() => setShowModal(false)} onSaved={d => setDocs(prev => [d, ...prev])} />
       )}
     </div>
   )
