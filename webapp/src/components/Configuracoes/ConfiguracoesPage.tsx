@@ -340,17 +340,19 @@ const FUSOS = [
 const UFS = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO']
 
 interface ClinicaConfig {
-  id?: string; nome: string; email: string; cnpj: string; telefone: string; cro: string
+  id?: string; nome: string; email: string; cnpj: string; telefone: string; whatsapp: string; cro: string
   fuso_horario: string; cep: string; endereco: string; numero: string; complemento: string
   bairro: string; cidade: string; estado: string; emitir_recibo: string
   pacientes_aguardando: boolean; pesquisa_satisfacao: boolean
+  dentista_nome: string; dentista_cro: string
 }
 
 const CONFIG_VAZIA: ClinicaConfig = {
-  nome: 'Consultório Dra. Lorena Coutinho', email: '', cnpj: '', telefone: '', cro: '',
+  nome: 'Consultório Dra. Lorena Coutinho', email: '', cnpj: '', telefone: '', whatsapp: '', cro: '',
   fuso_horario: 'America/Sao_Paulo', cep: '', endereco: '', numero: '', complemento: '',
   bairro: '', cidade: '', estado: 'SP', emitir_recibo: 'dentista',
   pacientes_aguardando: true, pesquisa_satisfacao: false,
+  dentista_nome: 'Dra. Lorena Coutinho', dentista_cro: '',
 }
 
 function ClinicaSecao({ onSalvar }: { onSalvar?: (salvando: boolean) => void }) {
@@ -418,19 +420,31 @@ function ClinicaSecao({ onSalvar }: { onSalvar?: (salvando: boolean) => void }) 
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Telefone</label>
-                <input className="input w-full" placeholder="(11) 99999-9999"
+                <input className="input w-full" placeholder="(11) 3333-3333"
                   value={cfg.telefone} onChange={e => set('telefone', e.target.value)} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">CRO</label>
-                <input className="input w-full" placeholder="CRO-SP 00000"
-                  value={cfg.cro} onChange={e => set('cro', e.target.value)} />
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">WhatsApp</label>
+                <input className="input w-full" placeholder="(11) 99999-9999"
+                  value={cfg.whatsapp} onChange={e => set('whatsapp', e.target.value)} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Fuso horário</label>
                 <select className="input w-full" value={cfg.fuso_horario} onChange={e => set('fuso_horario', e.target.value)}>
                   {FUSOS.map(f => <option key={f} value={f}>{f.replace('America/', '').replace('_', ' ')}</option>)}
                 </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Nome completo da dentista</label>
+                <input className="input w-full" placeholder="Dra. Lorena Coutinho"
+                  value={cfg.dentista_nome} onChange={e => set('dentista_nome', e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">CRO</label>
+                <input className="input w-full" placeholder="CRO-SP 443"
+                  value={cfg.dentista_cro} onChange={e => set('dentista_cro', e.target.value)} />
               </div>
             </div>
           </div>
