@@ -356,15 +356,16 @@ const CONFIG_VAZIA: ClinicaConfig = {
 }
 
 function ClinicaSecao({ onSalvar }: { onSalvar?: (salvando: boolean) => void }) {
-  const [cfg,     setCfg]     = useState<ClinicaConfig>(CONFIG_VAZIA)
-  const [loading, setLoading] = useState(true)
+  const [cfg,      setCfg]      = useState<ClinicaConfig>(CONFIG_VAZIA)
+  const [loading,  setLoading]  = useState(true)
   const [salvando, setSalvando] = useState(false)
-  const [ok,      setOk]      = useState(false)
-  const [logo,    setLogo]    = useState<string | null>(null)
+  const [ok,       setOk]       = useState(false)
+  const [erro,     setErro]     = useState('')
+  const [logo,     setLogo]     = useState<string | null>(null)
 
   useEffect(() => {
     supabase.from('configuracoes_clinica').select('*').limit(1).single()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
         if (data) setCfg(data as ClinicaConfig)
         setLoading(false)
       })
@@ -375,15 +376,26 @@ function ClinicaSecao({ onSalvar }: { onSalvar?: (salvando: boolean) => void }) 
   }
 
   async function salvar() {
-    setSalvando(true); setOk(false)
-    if (cfg.id) {
-      await supabase.from('configuracoes_clinica').update(cfg).eq('id', cfg.id)
+    setSalvando(true); setOk(false); setErro('')
+
+    const { id, ...payload } = cfg
+
+    let error
+    if (id) {
+      ;({ error } = await supabase.from('configuracoes_clinica').update(payload).eq('id', id))
     } else {
-      const { data } = await supabase.from('configuracoes_clinica').insert(cfg).select().single()
+      const { data, error: err } = await supabase.from('configuracoes_clinica').insert(payload).select().single()
+      error = err
       if (data) setCfg(data as ClinicaConfig)
     }
-    setSalvando(false); setOk(true)
-    setTimeout(() => setOk(false), 3000)
+
+    setSalvando(false)
+    if (error) {
+      setErro(error.message)
+    } else {
+      setOk(true)
+      setTimeout(() => setOk(false), 3000)
+    }
   }
 
   function handleLogo(e: React.ChangeEvent<HTMLInputElement>) {
@@ -549,7 +561,8 @@ function ClinicaSecao({ onSalvar }: { onSalvar?: (salvando: boolean) => void }) 
 
       {/* Botão salvar próprio */}
       <div className="flex items-center justify-end gap-3 pt-2">
-        {ok && <span className="text-sm text-green-600 font-medium">✓ Configurações salvas</span>}
+        {ok   && <span className="text-sm text-green-600 font-medium">✓ Configurações salvas</span>}
+        {erro && <span className="text-sm text-red-600">{erro}</span>}
         <button onClick={salvar} disabled={salvando} className="btn-primary disabled:opacity-60">
           <Save size={15} /> {salvando ? 'Salvando...' : 'Salvar configurações'}
         </button>
