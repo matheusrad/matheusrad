@@ -15,7 +15,7 @@ interface Clinica {
   email: string | null; cep: string | null; endereco: string | null; numero: string | null
   complemento: string | null; bairro: string | null; cidade: string | null; estado: string | null
   dentista_nome: string | null; dentista_cro: string | null; assinatura_base64: string | null
-  emitir_recibo: string | null
+  emitir_recibo: string | null; logo_base64: string | null
 }
 
 const CLINICA_PADRAO: Clinica = {
@@ -23,7 +23,7 @@ const CLINICA_PADRAO: Clinica = {
   email: null, cep: null, endereco: null, numero: null, complemento: null,
   bairro: null, cidade: null, estado: null,
   dentista_nome: 'Dra. Lorena Coutinho', dentista_cro: null, assinatura_base64: null,
-  emitir_recibo: 'dentista',
+  emitir_recibo: 'dentista', logo_base64: null,
 }
 
 // ─── pad de assinatura ────────────────────────────────────────────────────────
@@ -106,31 +106,25 @@ function SignaturePad({ value, onChange }: { value: string | null; onChange: (b6
 
 // ─── componentes do documento ─────────────────────────────────────────────────
 
-function Cabecalho({ clinica, numero, data }: { clinica: Clinica; numero: string | null; data: string }) {
-  const emitePorClinica = clinica.emitir_recibo === 'clinica'
+function Cabecalho({ clinica, data }: { clinica: Clinica; data: string }) {
   return (
-    <div className="flex items-start justify-between border-b-2 border-gray-800 pb-4 mb-6">
+    <div className="flex items-center justify-between border-b-2 border-gray-800 pb-4 mb-6">
+      {/* Esquerda: nome da clínica */}
       <div>
         <h1 className="text-xl font-bold text-gray-900">{clinica.nome}</h1>
-        {emitePorClinica ? (
-          <>
-            {clinica.cnpj && <p className="text-sm text-gray-500 mt-0.5">CNPJ: {clinica.cnpj}</p>}
-            {clinica.email && <p className="text-xs text-gray-400">{clinica.email}</p>}
-          </>
-        ) : (
-          <>
-            {(clinica.dentista_nome || clinica.dentista_cro) && (
-              <p className="text-sm text-gray-500 mt-0.5">
-                {clinica.dentista_nome}{clinica.dentista_cro ? ` · ${clinica.dentista_cro}` : ''}
-              </p>
-            )}
-            {clinica.email && <p className="text-xs text-gray-400">{clinica.email}</p>}
-          </>
-        )}
+        {clinica.email && <p className="text-xs text-gray-400 mt-0.5">{clinica.email}</p>}
       </div>
-      <div className="text-right text-xs text-gray-400 mt-1 space-y-0.5">
-        <p>Nº {numero ?? '—'}</p>
-        <p>{format(parseISO(data), "d 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
+
+      {/* Direita: logo + data */}
+      <div className="flex flex-col items-end gap-1">
+        {clinica.logo_base64 ? (
+          <img src={clinica.logo_base64} alt="Logo" className="h-12 object-contain" />
+        ) : (
+          <div className="h-12 w-12 rounded-lg bg-blue-50 flex items-center justify-center text-blue-300 text-xs">logo</div>
+        )}
+        <p className="text-xs text-gray-400">
+          {format(parseISO(data), "d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+        </p>
       </div>
     </div>
   )
@@ -156,8 +150,8 @@ function Assinatura({ clinica, assinatura }: { clinica: Clinica; assinatura: str
             <div className="h-16 mb-1" />
           )}
           <div className="border-b border-gray-600 mb-2" />
-          <p className="text-sm font-semibold text-gray-900">{clinica.dentista_nome ?? clinica.nome}</p>
-          {clinica.dentista_cro && <p className="text-xs text-gray-500">{clinica.dentista_cro}</p>}
+          <p className="text-base font-bold text-gray-900">{clinica.dentista_nome ?? clinica.nome}</p>
+          {clinica.dentista_cro && <p className="text-sm text-gray-500">{clinica.dentista_cro}</p>}
         </div>
       </div>
 
@@ -178,7 +172,7 @@ function PrintReceituario({ doc, clinica, assinatura, especial }: { doc: DocRow;
   const meds: { nome: string; posologia: string }[] = dados.medicamentos ?? []
   return (
     <div>
-      <Cabecalho clinica={clinica} numero={doc.numero_documento} data={doc.created_at} />
+      <Cabecalho clinica={clinica} data={doc.created_at} />
       <p className="text-center font-bold text-sm uppercase tracking-widest mb-6">
         {especial ? 'Receituário Especial' : 'Receituário Médico'}
       </p>
@@ -219,7 +213,7 @@ function PrintAtestado({ doc, clinica, assinatura }: { doc: DocRow; clinica: Cli
     : '—'
   return (
     <div>
-      <Cabecalho clinica={clinica} numero={doc.numero_documento} data={doc.created_at} />
+      <Cabecalho clinica={clinica} data={doc.created_at} />
       <p className="text-center font-bold text-sm uppercase tracking-widest mb-8">Atestado Odontológico</p>
       <p className="text-sm leading-7 text-gray-800">
         Atesto para os devidos fins que o(a) paciente <strong>{doc.paciente_nome}</strong>
@@ -244,7 +238,7 @@ function PrintPedidoExame({ doc, clinica, assinatura }: { doc: DocRow; clinica: 
   const exames: { nome: string; descricao?: string }[] = dados.exames ?? []
   return (
     <div>
-      <Cabecalho clinica={clinica} numero={doc.numero_documento} data={doc.created_at} />
+      <Cabecalho clinica={clinica} data={doc.created_at} />
       <p className="text-center font-bold text-sm uppercase tracking-widest mb-6">
         Solicitação de Exame{dados.urgente ? ' – URGENTE' : ''}
       </p>

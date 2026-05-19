@@ -344,7 +344,7 @@ interface ClinicaConfig {
   fuso_horario: string; cep: string; endereco: string; numero: string; complemento: string
   bairro: string; cidade: string; estado: string; emitir_recibo: string
   pacientes_aguardando: boolean; pesquisa_satisfacao: boolean
-  dentista_nome: string; dentista_cro: string
+  dentista_nome: string; dentista_cro: string; logo_base64: string | null
 }
 
 const CONFIG_VAZIA: ClinicaConfig = {
@@ -352,7 +352,7 @@ const CONFIG_VAZIA: ClinicaConfig = {
   fuso_horario: 'America/Sao_Paulo', cep: '', endereco: '', numero: '', complemento: '',
   bairro: '', cidade: '', estado: 'SP', emitir_recibo: 'dentista',
   pacientes_aguardando: true, pesquisa_satisfacao: false,
-  dentista_nome: 'Dra. Lorena Coutinho', dentista_cro: '',
+  dentista_nome: 'Dra. Lorena Coutinho', dentista_cro: '', logo_base64: null,
 }
 
 function ClinicaSecao({ registerSalvar }: { registerSalvar?: (fn: () => Promise<void>) => void }) {
@@ -365,8 +365,11 @@ function ClinicaSecao({ registerSalvar }: { registerSalvar?: (fn: () => Promise<
 
   useEffect(() => {
     supabase.from('configuracoes_clinica').select('*').limit(1).single()
-      .then(({ data, error }) => {
-        if (data) setCfg(data as ClinicaConfig)
+      .then(({ data }) => {
+        if (data) {
+          setCfg(data as ClinicaConfig)
+          if ((data as ClinicaConfig).logo_base64) setLogo((data as ClinicaConfig).logo_base64)
+        }
         setLoading(false)
       })
   }, [])
@@ -401,7 +404,18 @@ function ClinicaSecao({ registerSalvar }: { registerSalvar?: (fn: () => Promise<
   function handleLogo(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    setLogo(URL.createObjectURL(file))
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const b64 = ev.target?.result as string
+      setLogo(b64)
+      setCfg(prev => ({ ...prev, logo_base64: b64 }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  function removerLogo() {
+    setLogo(null)
+    setCfg(prev => ({ ...prev, logo_base64: null }))
   }
 
   useEffect(() => {
@@ -469,7 +483,7 @@ function ClinicaSecao({ registerSalvar }: { registerSalvar?: (fn: () => Promise<
               {logo ? <img src={logo} alt="Logo" className="w-full h-full object-cover" /> : <Building size={28} className="text-gray-300" />}
             </div>
             {logo
-              ? <button onClick={() => setLogo(null)} className="text-xs text-red-500 hover:underline">Remover</button>
+              ? <button onClick={removerLogo} className="text-xs text-red-500 hover:underline">Remover</button>
               : <label className="text-xs text-blue-600 hover:underline cursor-pointer">
                   Adicionar logo
                   <input type="file" accept="image/*" className="hidden" onChange={handleLogo} />
