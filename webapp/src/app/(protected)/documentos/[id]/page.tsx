@@ -378,38 +378,25 @@ export default function DocumentoPrintPage() {
           body { -webkit-print-color-adjust: exact; background: white; }
           * { box-shadow: none !important; }
           .rodape-print {
+            display: block !important;
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            padding: 8px 18mm 12px;
+            padding: 8px 18mm 14px;
             background: white;
             border-top: 1px solid #e5e7eb;
             text-align: center;
             font-size: 11px;
             color: #9ca3af;
-            line-height: 1.6;
+            line-height: 1.7;
           }
         }
       `}</style>
 
-      {/* Rodapé fixo apenas na impressão */}
-      <div className="rodape-print hidden">
-        {(() => {
-          const enderecoCompleto = [
-            clinica.endereco, clinica.numero, clinica.complemento,
-            clinica.bairro, clinica.cidade && clinica.estado ? `${clinica.cidade} – ${clinica.estado}` : clinica.cidade,
-            clinica.cep,
-          ].filter(Boolean).join(', ')
-          const wp = clinica.whatsapp || clinica.telefone
-          return (
-            <>
-              {enderecoCompleto && <p>{enderecoCompleto}</p>}
-              {wp && <p>WhatsApp / Tel: {wp}</p>}
-              {clinica.email && <p>{clinica.email}</p>}
-            </>
-          )
-        })()}
+      {/* Rodapé fixo na impressão — hidden na tela, visível só no print via CSS acima */}
+      <div className="rodape-print" style={{ display: 'none' }}>
+        <Rodape clinica={clinica} />
       </div>
     </>
   )
