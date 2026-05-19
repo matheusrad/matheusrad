@@ -144,15 +144,15 @@ function Assinatura({ clinica, assinatura, data }: { clinica: Clinica; assinatur
         {cidade ? `${cidade}, ` : ''}{dataFormatada}
       </p>
       <div className="flex justify-center">
-        <div className="text-center w-64">
+        <div className="text-center">
           {assinatura ? (
             <img src={assinatura} alt="Assinatura" className="h-14 mx-auto object-contain mb-1" />
           ) : (
             <div className="h-14 mb-1" />
           )}
           <div className="border-b border-gray-600 mb-1.5" />
-          <p className="text-sm font-bold text-gray-900">{clinica.dentista_nome ?? clinica.nome}</p>
-          {clinica.dentista_cro && <p className="text-xs text-gray-500">{clinica.dentista_cro}</p>}
+          <p className="text-sm font-bold text-gray-900 whitespace-nowrap">{clinica.dentista_nome ?? clinica.nome}</p>
+          {clinica.dentista_cro && <p className="text-xs text-gray-500 whitespace-nowrap">{clinica.dentista_cro}</p>}
         </div>
       </div>
     </div>
