@@ -65,6 +65,7 @@ interface Dentista { id: string; nome: string; especialidade: string | null; cro
 const STATUS_CFG: Record<string, { label: string; bg: string; bl: string; text: string; dot: string }> = {
   Agendado:   { label: 'Agendado',   bg: 'bg-blue-50',   bl: 'border-l-blue-500',   text: 'text-blue-800',   dot: 'bg-blue-500' },
   Confirmado: { label: 'Confirmado', bg: 'bg-green-50',  bl: 'border-l-green-500',  text: 'text-green-800',  dot: 'bg-green-500' },
+  Aguardando: { label: 'Aguardando', bg: 'bg-orange-50', bl: 'border-l-orange-500', text: 'text-orange-800', dot: 'bg-orange-500' },
   Realizado:  { label: 'Realizado',  bg: 'bg-gray-100',  bl: 'border-l-gray-400',   text: 'text-gray-600',   dot: 'bg-gray-400' },
   Cancelado:  { label: 'Cancelado',  bg: 'bg-red-50',    bl: 'border-l-red-400',    text: 'text-red-700',    dot: 'bg-red-400' },
   Faltou:     { label: 'Faltou',     bg: 'bg-red-100',   bl: 'border-l-red-600',    text: 'text-red-800',    dot: 'bg-red-600' },
@@ -569,18 +570,19 @@ function ProfissionalModal({ onClose, onSaved }: { onClose: () => void; onSaved:
 
 // ── Página principal ──────────────────────────────────────────
 export function AgendaPage() {
-  const [dataBase,    setDataBase]    = useState(new Date())
-  const [view,        setView]        = useState<'grade' | 'semana' | 'dia'>('grade')
-  const [consultas,   setConsultas]   = useState<Consulta[]>([])
-  const [loading,     setLoading]     = useState(true)
-  const [selected,    setSelected]    = useState<Consulta | null>(null)
-  const [editing,     setEditing]     = useState<Consulta | null>(null)
-  const [newDate,     setNewDate]     = useState<Date | null>(null)
-  const [showNova,    setShowNova]    = useState(false)
-  const [aguardando,  setAguardando]  = useState(true)
-  const [agendas,     setAgendas]     = useState(true)
-  const [dentistas,   setDentistas]   = useState<Dentista[]>([])
-  const [showAddProf, setShowAddProf] = useState(false)
+  const [dataBase,             setDataBase]             = useState(new Date())
+  const [view,                 setView]                 = useState<'grade' | 'semana' | 'dia'>('grade')
+  const [consultas,            setConsultas]            = useState<Consulta[]>([])
+  const [loading,              setLoading]              = useState(true)
+  const [selected,             setSelected]             = useState<Consulta | null>(null)
+  const [editing,              setEditing]              = useState<Consulta | null>(null)
+  const [newDate,              setNewDate]              = useState<Date | null>(null)
+  const [showNova,             setShowNova]             = useState(false)
+  const [aguardandoOpen,       setAguardandoOpen]       = useState(true)
+  const [agendas,              setAgendas]              = useState(true)
+  const [dentistas,            setDentistas]            = useState<Dentista[]>([])
+  const [showAddProf,          setShowAddProf]          = useState(false)
+  const [habilitarAguardando,  setHabilitarAguardando]  = useState(true)
 
   const inicio  = startOfWeek(dataBase, { weekStartsOn: 1 })
   const dias    = Array.from({ length: 6 }, (_, i) => addDays(inicio, i)) // Seg–Sáb
@@ -604,6 +606,11 @@ export function AgendaPage() {
       .then(({ data, error }) => { if (!error) setDentistas((data as Dentista[]) ?? []) })
   }, [])
 
+  useEffect(() => {
+    supabase.from('configuracoes_clinica').select('pacientes_aguardando').limit(1).single()
+      .then(({ data }) => { if (data) setHabilitarAguardando(data.pacientes_aguardando ?? true) })
+  }, [])
+
   function consultasDoDia(dia: Date) {
     return consultas.filter(c => isSameDay(parseISO(c.data_consulta), dia))
   }
@@ -618,8 +625,8 @@ export function AgendaPage() {
 
   const hoje = new Date()
   const aguardandoList = consultas.filter(c =>
-    c.status === 'Agendado' && parseISO(c.data_consulta) >= hoje
-  ).slice(0, 5)
+    c.status === 'Aguardando' && isSameDay(parseISO(c.data_consulta), hoje)
+  )
 
   return (
     <div className="-m-6 flex overflow-hidden" style={{ height: 'calc(100vh - 56px)' }}>
@@ -634,29 +641,38 @@ export function AgendaPage() {
           <div className="h-px bg-gray-100" />
         </div>
 
-        {/* Pacientes aguardando */}
-        <div className="px-3 py-2">
-          <button onClick={() => setAguardando(o => !o)}
-            className="flex items-center justify-between w-full text-xs font-semibold text-gray-500 uppercase tracking-wide py-1">
-            Pacientes aguardando
-            <ChevronLeft size={12} className={clsx('transition-transform', aguardando && '-rotate-90')} />
-          </button>
-          {aguardando && (
-            <div className="mt-1 space-y-1">
-              {aguardandoList.length === 0 ? (
-                <p className="text-[11px] text-gray-400 py-1">Nenhum aguardando</p>
-              ) : aguardandoList.map(c => (
-                <button key={c.id} onClick={() => setSelected(c)}
-                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
-                  <p className="text-xs font-medium text-gray-800 truncate">{c.paciente_nome.split(' ')[0]}</p>
-                  <p className="text-[10px] text-gray-400">
-                    {format(parseISO(c.data_consulta), 'dd/MM HH:mm')}
-                  </p>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Pacientes aguardando — só exibe se habilitado nas configurações */}
+        {habilitarAguardando && (
+          <div className="px-3 py-2">
+            <button onClick={() => setAguardandoOpen(o => !o)}
+              className="flex items-center justify-between w-full text-xs font-semibold text-gray-500 uppercase tracking-wide py-1">
+              <span className="flex items-center gap-1.5">
+                Sala de espera
+                {aguardandoList.length > 0 && (
+                  <span className="bg-orange-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    {aguardandoList.length}
+                  </span>
+                )}
+              </span>
+              <ChevronLeft size={12} className={clsx('transition-transform', aguardandoOpen && '-rotate-90')} />
+            </button>
+            {aguardandoOpen && (
+              <div className="mt-1 space-y-1">
+                {aguardandoList.length === 0 ? (
+                  <p className="text-[11px] text-gray-400 py-1">Nenhum na sala de espera</p>
+                ) : aguardandoList.map(c => (
+                  <button key={c.id} onClick={() => setSelected(c)}
+                    className="w-full text-left px-2 py-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 transition-colors border border-orange-100">
+                    <p className="text-xs font-medium text-orange-900 truncate">{c.paciente_nome.split(' ')[0]}</p>
+                    <p className="text-[10px] text-orange-500">
+                      {format(parseISO(c.data_consulta), 'HH:mm')} · aguardando
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="px-2 py-1"><div className="h-px bg-gray-100" /></div>
 

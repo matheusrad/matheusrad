@@ -11,17 +11,19 @@ interface DocRow {
   numero_documento: string | null; conteudo_texto: string | null; created_at: string
 }
 interface Clinica {
-  nome: string; cro: string | null; telefone: string | null; whatsapp: string | null
+  nome: string; cnpj: string | null; cro: string | null; telefone: string | null; whatsapp: string | null
   email: string | null; cep: string | null; endereco: string | null; numero: string | null
   complemento: string | null; bairro: string | null; cidade: string | null; estado: string | null
   dentista_nome: string | null; dentista_cro: string | null; assinatura_base64: string | null
+  emitir_recibo: string | null
 }
 
 const CLINICA_PADRAO: Clinica = {
-  nome: 'Consultório Dra. Lorena Coutinho', cro: null, telefone: null, whatsapp: null,
+  nome: 'Consultório Dra. Lorena Coutinho', cnpj: null, cro: null, telefone: null, whatsapp: null,
   email: null, cep: null, endereco: null, numero: null, complemento: null,
   bairro: null, cidade: null, estado: null,
   dentista_nome: 'Dra. Lorena Coutinho', dentista_cro: null, assinatura_base64: null,
+  emitir_recibo: 'dentista',
 }
 
 // ─── pad de assinatura ────────────────────────────────────────────────────────
@@ -105,12 +107,26 @@ function SignaturePad({ value, onChange }: { value: string | null; onChange: (b6
 // ─── componentes do documento ─────────────────────────────────────────────────
 
 function Cabecalho({ clinica, numero, data }: { clinica: Clinica; numero: string | null; data: string }) {
+  const emitePorClinica = clinica.emitir_recibo === 'clinica'
   return (
     <div className="flex items-start justify-between border-b-2 border-gray-800 pb-4 mb-6">
       <div>
         <h1 className="text-xl font-bold text-gray-900">{clinica.nome}</h1>
-        {clinica.dentista_cro && <p className="text-sm text-gray-500 mt-0.5">{clinica.dentista_cro}</p>}
-        {clinica.email && <p className="text-xs text-gray-400">{clinica.email}</p>}
+        {emitePorClinica ? (
+          <>
+            {clinica.cnpj && <p className="text-sm text-gray-500 mt-0.5">CNPJ: {clinica.cnpj}</p>}
+            {clinica.email && <p className="text-xs text-gray-400">{clinica.email}</p>}
+          </>
+        ) : (
+          <>
+            {(clinica.dentista_nome || clinica.dentista_cro) && (
+              <p className="text-sm text-gray-500 mt-0.5">
+                {clinica.dentista_nome}{clinica.dentista_cro ? ` · ${clinica.dentista_cro}` : ''}
+              </p>
+            )}
+            {clinica.email && <p className="text-xs text-gray-400">{clinica.email}</p>}
+          </>
+        )}
       </div>
       <div className="text-right text-xs text-gray-400 mt-1 space-y-0.5">
         <p>Nº {numero ?? '—'}</p>
