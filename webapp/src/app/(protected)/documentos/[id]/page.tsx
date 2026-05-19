@@ -281,6 +281,163 @@ function PrintPedidoExame({ doc, clinica, assinatura }: { doc: DocRow; clinica: 
   )
 }
 
+// ─── receituário controle especial ───────────────────────────────────────────
+
+const RCE_COR = '#9b2d78'
+
+function ViaRCE({ doc, clinica, assinatura }: { doc: DocRow; clinica: Clinica; assinatura: string | null }) {
+  const dados = JSON.parse(doc.conteudo_texto ?? '{}')
+  const meds: { nome: string; posologia: string }[] = dados.medicamentos ?? []
+  const c = RCE_COR
+
+  const emitenteLinha2 = [clinica.endereco, clinica.numero, clinica.complemento, clinica.bairro].filter(Boolean).join(', ')
+  const emitenteLinha3 = [
+    clinica.cep,
+    clinica.cidade && clinica.estado ? `${clinica.cidade} - ${clinica.estado}` : (clinica.cidade ?? clinica.estado),
+  ].filter(Boolean).join(' - ')
+  const fone = clinica.whatsapp || clinica.telefone
+
+  return (
+    <div style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '11px', color: '#333' }}>
+      {/* Título */}
+      <p style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14px', color: c, marginBottom: '8px', letterSpacing: '1px' }}>
+        RECEITUÁRIO CONTROLE ESPECIAL
+      </p>
+
+      {/* Emitente + Via */}
+      <div style={{ display: 'flex', border: `1.5px solid ${c}`, marginBottom: '10px' }}>
+        <div style={{ flex: 1, borderRight: `1px solid ${c}` }}>
+          <div style={{ background: '#f8ecf4', textAlign: 'center', fontWeight: 'bold', fontSize: '10px', color: c, padding: '3px 6px', borderBottom: `1px solid ${c}` }}>
+            IDENTIFICAÇÃO DO EMITENTE
+          </div>
+          <div style={{ padding: '8px', textAlign: 'center', color: c, lineHeight: 1.6 }}>
+            <p style={{ fontWeight: 'bold' }}>{clinica.dentista_nome ?? clinica.nome}</p>
+            <p>Cirurgião-Dentista</p>
+            {clinica.dentista_cro && <p>{clinica.dentista_cro}</p>}
+            {emitenteLinha2 && <p style={{ marginTop: '4px' }}>{emitenteLinha2}</p>}
+            {emitenteLinha3 && <p>{emitenteLinha3}</p>}
+            {fone && <p>Fone: {fone}</p>}
+          </div>
+        </div>
+        <div style={{ width: '110px', padding: '10px 8px', color: c, fontSize: '10px', fontWeight: 'bold', lineHeight: 2 }}>
+          <p>1ª VIA FARMÁCIA</p>
+          <p>2ª VIA PACIENTE</p>
+        </div>
+      </div>
+
+      {/* Campos do paciente */}
+      {[
+        { label: 'Paciente:', value: doc.paciente_nome ?? '' },
+        { label: 'Endereço:', value: '' },
+        { label: 'Prescrição:', value: '' },
+      ].map(({ label, value }) => (
+        <div key={label} style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', marginBottom: '6px' }}>
+          <span style={{ color: c, fontWeight: 'bold', whiteSpace: 'nowrap', minWidth: '72px' }}>{label}</span>
+          <span style={{ flex: 1, borderBottom: '1px solid #999', paddingBottom: '1px' }}>{value}</span>
+        </div>
+      ))}
+
+      {/* Medicamentos */}
+      <div style={{ minHeight: '56px', marginBottom: '10px' }}>
+        {meds.map((m, i) => (
+          <div key={i} style={{ marginBottom: '6px' }}>
+            <p style={{ fontWeight: 'bold' }}>{i + 1}. {m.nome}</p>
+            <p style={{ marginLeft: '14px', color: '#555' }}>{m.posologia}</p>
+          </div>
+        ))}
+        {Array.from({ length: Math.max(0, 6 - meds.length * 2) }).map((_, i) => (
+          <div key={i} style={{ borderBottom: '1px solid #ddd', height: '16px', marginBottom: '4px' }} />
+        ))}
+      </div>
+
+      {/* Data + Assinatura */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '20px', marginBottom: '2px' }}>
+        <div style={{ whiteSpace: 'nowrap' }}>
+          <span style={{ display: 'inline-block', borderBottom: '1px solid #999', width: '28px' }} />
+          {' / '}
+          <span style={{ display: 'inline-block', borderBottom: '1px solid #999', width: '28px' }} />
+          {' / '}
+          <span style={{ display: 'inline-block', borderBottom: '1px solid #999', width: '40px' }} />
+        </div>
+        <div style={{ flex: 1, borderBottom: '1px solid #999', minHeight: '28px', display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end' }}>
+          {assinatura && <img src={assinatura} alt="Assinatura" style={{ height: '28px', objectFit: 'contain' }} />}
+        </div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#888', marginBottom: '12px' }}>
+        <span>Data</span>
+        <span>Assinatura e Carimbo do Emitente</span>
+      </div>
+
+      {/* Comprador + Fornecedor */}
+      <div style={{ display: 'flex', border: `1.5px solid ${c}` }}>
+        {/* Comprador */}
+        <div style={{ flex: 1, borderRight: `1px solid ${c}` }}>
+          <div style={{ background: '#f8ecf4', textAlign: 'center', fontWeight: 'bold', fontSize: '10px', color: c, padding: '3px 6px', borderBottom: `1px solid ${c}` }}>
+            IDENTIFICAÇÃO DO COMPRADOR
+          </div>
+          <div style={{ padding: '8px', fontSize: '10px', lineHeight: 1.9 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px' }}>
+              <span>Nome:</span>
+              <span style={{ flex: 1, borderBottom: '1px solid #ccc' }} />
+            </div>
+            <div style={{ height: '8px' }} />
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px' }}>
+              <span style={{ whiteSpace: 'nowrap' }}>Ident.:</span>
+              <span style={{ flex: 1, borderBottom: '1px solid #ccc' }} />
+              <span style={{ whiteSpace: 'nowrap', marginLeft: '4px' }}>Org. Emissor:</span>
+              <span style={{ width: '36px', borderBottom: '1px solid #ccc' }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px' }}>
+              <span>End.:</span>
+              <span style={{ flex: 1, borderBottom: '1px solid #ccc' }} />
+            </div>
+            <div style={{ height: '8px' }} />
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px' }}>
+              <span>Cidade:</span>
+              <span style={{ flex: 1, borderBottom: '1px solid #ccc' }} />
+              <span style={{ marginLeft: '4px' }}>UF:</span>
+              <span style={{ width: '24px', borderBottom: '1px solid #ccc' }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px' }}>
+              <span>Telefone:</span>
+              <span style={{ flex: 1, borderBottom: '1px solid #ccc' }} />
+            </div>
+          </div>
+        </div>
+        {/* Fornecedor */}
+        <div style={{ flex: 1 }}>
+          <div style={{ background: '#f8ecf4', textAlign: 'center', fontWeight: 'bold', fontSize: '10px', color: c, padding: '3px 6px', borderBottom: `1px solid ${c}` }}>
+            IDENTIFICAÇÃO DO FORNECEDOR
+          </div>
+          <div style={{ height: '68px' }} />
+          <div style={{ padding: '0 8px 8px', display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ borderBottom: '1px solid #ccc', marginBottom: '3px' }} />
+              <p style={{ fontSize: '9px', textAlign: 'center', color: '#666' }}>ASSINATURA DO FARMACÊUTICO</p>
+            </div>
+            <div style={{ width: '48px' }}>
+              <div style={{ borderBottom: '1px solid #ccc', marginBottom: '3px' }} />
+              <p style={{ fontSize: '9px', textAlign: 'center', color: '#666' }}>DATA</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PrintReceituarioControleEspecial({ doc, clinica, assinatura }: { doc: DocRow; clinica: Clinica; assinatura: string | null }) {
+  return (
+    <>
+      <ViaRCE doc={doc} clinica={clinica} assinatura={assinatura} />
+      <div className="rce-separador">
+        ✂ · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·
+      </div>
+      <ViaRCE doc={doc} clinica={clinica} assinatura={assinatura} />
+    </>
+  )
+}
+
 // ─── página principal ─────────────────────────────────────────────────────────
 
 export default function DocumentoPrintPage() {
@@ -319,10 +476,11 @@ export default function DocumentoPrintPage() {
     if (!doc) return null
     const props = { doc, clinica, assinatura }
     switch (doc.tipo) {
-      case 'receituario':          return <PrintReceituario {...props} />
-      case 'receituario_especial': return <PrintReceituario {...props} especial />
-      case 'atestado':             return <PrintAtestado {...props} />
-      case 'pedido_exame':         return <PrintPedidoExame {...props} />
+      case 'receituario':                   return <PrintReceituario {...props} />
+      case 'receituario_especial':          return <PrintReceituario {...props} especial />
+      case 'receituario_controle_especial': return <PrintReceituarioControleEspecial {...props} />
+      case 'atestado':                      return <PrintAtestado {...props} />
+      case 'pedido_exame':                  return <PrintPedidoExame {...props} />
       default: return <p>Tipo desconhecido</p>
     }
   }
@@ -370,7 +528,7 @@ export default function DocumentoPrintPage() {
       </div>
 
       {/* Versão que será impressa */}
-      <div className="hidden print:block print-body">
+      <div className={`hidden print:block print-body${doc.tipo === 'receituario_controle_especial' ? ' print-body--rce' : ''}`}>
         {renderDoc()}
       </div>
 
@@ -391,6 +549,19 @@ export default function DocumentoPrintPage() {
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
+          }
+          .print-body--rce {
+            height: auto;
+            min-height: 297mm;
+            display: block;
+            padding: 14mm 18mm;
+          }
+          .rce-separador {
+            text-align: center;
+            font-size: 9px;
+            color: #bbb;
+            margin: 8px 0;
+            letter-spacing: 1px;
           }
           .rodape-print {
             display: block !important;
@@ -417,10 +588,12 @@ export default function DocumentoPrintPage() {
         }
       `}</style>
 
-      {/* Rodapé fixo na impressão */}
-      <div className="rodape-print" style={{ display: 'none' }}>
-        <Rodape clinica={clinica} />
-      </div>
+      {/* Rodapé fixo na impressão — oculto no RCE (tem própria estrutura) */}
+      {doc.tipo !== 'receituario_controle_especial' && (
+        <div className="rodape-print" style={{ display: 'none' }}>
+          <Rodape clinica={clinica} />
+        </div>
+      )}
     </>
   )
 }
