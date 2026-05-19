@@ -139,7 +139,7 @@ function Assinatura({ clinica, assinatura, data }: { clinica: Clinica; assinatur
   const dataFormatada = format(parseISO(data), "d 'de' MMMM 'de' yyyy", { locale: ptBR })
 
   return (
-    <div className="mt-12">
+    <div className="pt-8">
       <p className="text-sm text-gray-600 mb-6">
         {cidade ? `${cidade}, ` : ''}{dataFormatada}
       </p>
@@ -181,35 +181,37 @@ function PrintReceituario({ doc, clinica, assinatura, especial }: { doc: DocRow;
   const dados = JSON.parse(doc.conteudo_texto ?? '{}')
   const meds: { nome: string; posologia: string }[] = dados.medicamentos ?? []
   return (
-    <div>
-      <Cabecalho clinica={clinica} />
-      <p className="text-center font-bold text-sm uppercase tracking-widest mb-6">
-        {especial ? 'Receituário Especial' : 'Receituário'}
-      </p>
-      <p className="text-sm mb-5"><span className="font-medium">Paciente:</span> {doc.paciente_nome}</p>
-      {especial && dados.numero_notificacao && (
-        <p className="text-sm mb-4"><span className="font-medium">Nº de notificação:</span> {dados.numero_notificacao}</p>
-      )}
-      <div className="space-y-5 mb-6">
-        {meds.map((m, i) => (
-          <div key={i}>
-            <p className="font-semibold text-sm">{i + 1}. {m.nome}</p>
-            <p className="text-sm text-gray-700 ml-4 mt-0.5">{m.posologia}</p>
-          </div>
-        ))}
-      </div>
-      {dados.observacoes && (
-        <div className="border-t border-gray-100 pt-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Observações</p>
-          <p className="text-sm text-gray-700">{dados.observacoes}</p>
-        </div>
-      )}
-      {especial && (
-        <p className="mt-6 text-xs text-gray-400 border border-gray-200 rounded p-3">
-          Receituário de uso obrigatório para medicamentos sujeitos a controle especial (Portaria SVS/MS nº 344/98).<br />
-          <strong>1ª via: Farmácia · 2ª via: Paciente</strong>
+    <div className="flex flex-col h-full">
+      <div className="flex-1">
+        <Cabecalho clinica={clinica} />
+        <p className="text-center font-bold text-sm uppercase tracking-widest mb-6">
+          {especial ? 'Receituário Especial' : 'Receituário'}
         </p>
-      )}
+        <p className="text-sm mb-5"><span className="font-medium">Paciente:</span> {doc.paciente_nome}</p>
+        {especial && dados.numero_notificacao && (
+          <p className="text-sm mb-4"><span className="font-medium">Nº de notificação:</span> {dados.numero_notificacao}</p>
+        )}
+        <div className="space-y-5 mb-6">
+          {meds.map((m, i) => (
+            <div key={i}>
+              <p className="font-semibold text-sm">{i + 1}. {m.nome}</p>
+              <p className="text-sm text-gray-700 ml-4 mt-0.5">{m.posologia}</p>
+            </div>
+          ))}
+        </div>
+        {dados.observacoes && (
+          <div className="border-t border-gray-100 pt-4">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Observações</p>
+            <p className="text-sm text-gray-700">{dados.observacoes}</p>
+          </div>
+        )}
+        {especial && (
+          <p className="mt-6 text-xs text-gray-400 border border-gray-200 rounded p-3">
+            Receituário de uso obrigatório para medicamentos sujeitos a controle especial (Portaria SVS/MS nº 344/98).<br />
+            <strong>1ª via: Farmácia · 2ª via: Paciente</strong>
+          </p>
+        )}
+      </div>
       <Assinatura clinica={clinica} assinatura={assinatura} data={doc.created_at} />
     </div>
   )
@@ -222,22 +224,24 @@ function PrintAtestado({ doc, clinica, assinatura }: { doc: DocRow; clinica: Cli
     ? format(parseISO(dados.data_consulta), "d 'de' MMMM 'de' yyyy", { locale: ptBR })
     : '—'
   return (
-    <div>
-      <Cabecalho clinica={clinica} />
-      <p className="text-center font-bold text-sm uppercase tracking-widest mb-8">Atestado Odontológico</p>
-      <p className="text-sm leading-7 text-gray-800">
-        Atesto para os devidos fins que o(a) paciente <strong>{doc.paciente_nome}</strong>
-        {isComp
-          ? <> compareceu a esta clínica no dia <strong>{dataConsulta}</strong>
-              {dados.duracao && <>, pelo período de <strong>{dados.duracao}</strong></>},
-              para tratamento odontológico.</>
-          : <> encontra-se impossibilitado(a) de exercer suas atividades pelo período de{' '}
-              <strong>{dados.duracao ?? '—'}</strong>, a partir de <strong>{dataConsulta}</strong>,
-              em decorrência de tratamento odontológico.</>
-        }
-      </p>
-      {dados.cid && <p className="text-sm mt-3 text-gray-500">CID: {dados.cid}</p>}
-      {dados.observacoes && <p className="text-sm mt-2 text-gray-500">{dados.observacoes}</p>}
+    <div className="flex flex-col h-full">
+      <div className="flex-1">
+        <Cabecalho clinica={clinica} />
+        <p className="text-center font-bold text-sm uppercase tracking-widest mb-8">Atestado Odontológico</p>
+        <p className="text-sm leading-7 text-gray-800">
+          Atesto para os devidos fins que o(a) paciente <strong>{doc.paciente_nome}</strong>
+          {isComp
+            ? <> compareceu a esta clínica no dia <strong>{dataConsulta}</strong>
+                {dados.duracao && <>, pelo período de <strong>{dados.duracao}</strong></>},
+                para tratamento odontológico.</>
+            : <> encontra-se impossibilitado(a) de exercer suas atividades pelo período de{' '}
+                <strong>{dados.duracao ?? '—'}</strong>, a partir de <strong>{dataConsulta}</strong>,
+                em decorrência de tratamento odontológico.</>
+          }
+        </p>
+        {dados.cid && <p className="text-sm mt-3 text-gray-500">CID: {dados.cid}</p>}
+        {dados.observacoes && <p className="text-sm mt-2 text-gray-500">{dados.observacoes}</p>}
+      </div>
       <Assinatura clinica={clinica} assinatura={assinatura} data={doc.created_at} />
     </div>
   )
@@ -247,29 +251,31 @@ function PrintPedidoExame({ doc, clinica, assinatura }: { doc: DocRow; clinica: 
   const dados = JSON.parse(doc.conteudo_texto ?? '{}')
   const exames: { nome: string; descricao?: string }[] = dados.exames ?? []
   return (
-    <div>
-      <Cabecalho clinica={clinica} />
-      <p className="text-center font-bold text-sm uppercase tracking-widest mb-6">
-        Solicitação de Exame{dados.urgente ? ' – URGENTE' : ''}
-      </p>
-      <p className="text-sm mb-5"><span className="font-medium">Paciente:</span> {doc.paciente_nome}</p>
-      <div className="mb-6">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Exames solicitados</p>
-        <ul className="space-y-2">
-          {exames.map((e, i) => (
-            <li key={i} className="text-sm">
-              <span className="font-medium">{i + 1}. {e.nome}</span>
-              {e.descricao && <span className="text-gray-500"> — {e.descricao}</span>}
-            </li>
-          ))}
-        </ul>
-      </div>
-      {dados.indicacao && (
-        <div className="border-t border-gray-100 pt-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Indicação clínica</p>
-          <p className="text-sm text-gray-700">{dados.indicacao}</p>
+    <div className="flex flex-col h-full">
+      <div className="flex-1">
+        <Cabecalho clinica={clinica} />
+        <p className="text-center font-bold text-sm uppercase tracking-widest mb-6">
+          Solicitação de Exame{dados.urgente ? ' – URGENTE' : ''}
+        </p>
+        <p className="text-sm mb-5"><span className="font-medium">Paciente:</span> {doc.paciente_nome}</p>
+        <div className="mb-6">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Exames solicitados</p>
+          <ul className="space-y-2">
+            {exames.map((e, i) => (
+              <li key={i} className="text-sm">
+                <span className="font-medium">{i + 1}. {e.nome}</span>
+                {e.descricao && <span className="text-gray-500"> — {e.descricao}</span>}
+              </li>
+            ))}
+          </ul>
         </div>
-      )}
+        {dados.indicacao && (
+          <div className="border-t border-gray-100 pt-4">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Indicação clínica</p>
+            <p className="text-sm text-gray-700">{dados.indicacao}</p>
+          </div>
+        )}
+      </div>
       <Assinatura clinica={clinica} assinatura={assinatura} data={doc.created_at} />
     </div>
   )
@@ -355,7 +361,7 @@ export default function DocumentoPrintPage() {
         <div className="w-full max-w-[210mm]">
           <p className="text-xs text-gray-400 text-center mb-3">Prévia do documento · A4</p>
           <div className="bg-white shadow-xl rounded-sm p-[18mm] min-h-[297mm] flex flex-col">
-            <div className="flex-1">
+            <div className="flex-1 flex flex-col">
               {renderDoc()}
             </div>
             <Rodape clinica={clinica} />
@@ -381,8 +387,10 @@ export default function DocumentoPrintPage() {
           * { box-shadow: none !important; }
           .print-body {
             padding: 18mm 18mm 32mm;
-            min-height: 297mm;
-            position: relative;
+            height: 297mm;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
           }
           .rodape-print {
             display: block !important;
