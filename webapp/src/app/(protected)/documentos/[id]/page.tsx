@@ -116,18 +116,21 @@ function Cabecalho({ clinica }: { clinica: Clinica }) {
 
   return (
     <div className="flex items-center gap-5 border-b-2 border-gray-700 pb-4 mb-8">
-      {/* Logo */}
-      {clinica.logo_base64 ? (
-        <img src={clinica.logo_base64} alt="Logo" className="w-20 h-20 object-contain shrink-0" />
-      ) : (
-        <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center shrink-0 text-gray-300 text-xs print:hidden">logo</div>
-      )}
+      {/* Logo — reserva espaço mesmo sem imagem para manter layout */}
+      <div className="w-24 h-24 shrink-0 flex items-center justify-center">
+        {clinica.logo_base64 ? (
+          <img src={clinica.logo_base64} alt="Logo" className="w-24 h-24 object-contain" />
+        ) : (
+          <div className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300 text-[10px] text-center leading-tight print:border-0">
+            sem<br/>logo
+          </div>
+        )}
+      </div>
       {/* Dados da clínica */}
       <div>
         <h1 className="text-lg font-bold text-gray-900 leading-tight">{clinica.nome}</h1>
         {enderecoLinha && <p className="text-xs text-gray-600 mt-0.5">{enderecoLinha}</p>}
         {wp && <p className="text-xs text-gray-600">Telefone: {wp}</p>}
-        {clinica.email && <p className="text-xs text-gray-500">{clinica.email}</p>}
       </div>
     </div>
   )
