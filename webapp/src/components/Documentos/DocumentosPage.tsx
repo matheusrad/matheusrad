@@ -64,6 +64,89 @@ const CATEGORIAS_EXAME = [
   },
 ]
 
+// ─── busca de paciente ────────────────────────────────────────────────────────
+
+interface PacienteBusca {
+  id: string; nome: string; telefone: string | null
+  endereco: string | null; cpf: string | null; data_nascimento: string | null
+}
+
+function BuscaPacienteInput({ value, onSelect }: {
+  value: PacienteBusca | null
+  onSelect: (p: PacienteBusca | null) => void
+}) {
+  const [query, setQuery] = useState(value?.nome ?? '')
+  const [lista, setLista] = useState<PacienteBusca[]>([])
+  const [aberto, setAberto] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setAberto(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  async function buscar(q: string) {
+    setQuery(q)
+    onSelect(null)
+    if (q.length < 2) { setLista([]); setAberto(false); return }
+    const { data } = await supabase
+      .from('pacientes')
+      .select('id, nome, telefone, endereco, cpf, data_nascimento')
+      .ilike('nome', `%${q}%`)
+      .eq('status', 'Ativo')
+      .limit(8)
+    setLista((data as PacienteBusca[]) ?? [])
+    setAberto(true)
+  }
+
+  function selecionar(p: PacienteBusca) {
+    setQuery(p.nome)
+    onSelect(p)
+    setAberto(false)
+    setLista([])
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        className="input w-full"
+        autoFocus
+        placeholder="Digite o nome do paciente..."
+        value={query}
+        onChange={e => buscar(e.target.value)}
+        onFocus={() => query.length >= 2 && lista.length > 0 && setAberto(true)}
+      />
+      {value && (
+        <div className="mt-1.5 flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-1.5">
+          <span className="font-medium">✓ {value.nome}</span>
+          {value.telefone && <span className="text-green-500">· {value.telefone}</span>}
+          <button type="button" onClick={() => { onSelect(null); setQuery('') }}
+            className="ml-auto text-green-400 hover:text-red-500">×</button>
+        </div>
+      )}
+      {aberto && lista.length > 0 && (
+        <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden">
+          {lista.map(p => (
+            <button key={p.id} type="button" onMouseDown={() => selecionar(p)}
+              className="w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 border-b border-gray-50 last:border-0">
+              <p className="font-medium text-gray-800">{p.nome}</p>
+              <p className="text-xs text-gray-400">{p.telefone ?? '—'}{p.cpf ? ` · CPF: ${p.cpf}` : ''}</p>
+            </button>
+          ))}
+        </div>
+      )}
+      {aberto && lista.length === 0 && query.length >= 2 && (
+        <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-white border border-gray-100 rounded-xl shadow-sm px-4 py-3 text-sm text-gray-400">
+          Nenhum paciente encontrado
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── tipos ────────────────────────────────────────────────────────────────────
 
 type TipoDoc = 'receituario' | 'receituario_especial' | 'receituario_controle_especial' | 'atestado' | 'pedido_exame'
@@ -396,19 +479,20 @@ function PedidoExameForm({ onChange }: { onChange: (d: object) => void }) {
 // ─── modal novo documento ─────────────────────────────────────────────────────
 
 function NovoDocModal({ onClose, onSaved }: { onClose: () => void; onSaved: (d: DocRow) => void }) {
-  const [step,    setStep]    = useState<1 | 2>(1)
-  const [tipo,    setTipo]    = useState<TipoDoc | null>(null)
-  const [paciente, setPaciente] = useState('')
-  const [dados,   setDados]   = useState<object>({})
-  const [saving,  setSaving]  = useState(false)
-  const [error,   setError]   = useState('')
+  const [step,     setStep]     = useState<1 | 2>(1)
+  const [tipo,     setTipo]     = useState<TipoDoc | null>(null)
+  const [paciente, setPaciente] = useState<PacienteBusca | null>(null)
+  const [dados,    setDados]    = useState<object>({})
+  const [saving,   setSaving]   = useState(false)
+  const [error,    setError]    = useState('')
 
   async function salvar() {
-    if (!tipo || !paciente.trim()) { setError('Preencha o nome do paciente.'); return }
+    if (!tipo || !paciente) { setError('Selecione um paciente.'); return }
     setSaving(true); setError('')
     const { data, error: err } = await supabase.from('documentos').insert({
       tipo,
-      paciente_nome: paciente.trim(),
+      paciente_id:   paciente.id,
+      paciente_nome: paciente.nome,
       numero_documento: gerarNumero(tipo),
       conteudo_texto: JSON.stringify(dados),
     }).select().single()
@@ -449,9 +533,8 @@ function NovoDocModal({ onClose, onSaved }: { onClose: () => void; onSaved: (d: 
                 ← Trocar tipo
               </button>
               <div>
-                <label className="label">Nome do paciente *</label>
-                <input className="input" autoFocus placeholder="Nome completo do paciente" value={paciente}
-                  onChange={e => setPaciente(e.target.value)} />
+                <label className="label">Paciente *</label>
+                <BuscaPacienteInput value={paciente} onSelect={setPaciente} />
               </div>
               {(tipo === 'receituario' || tipo === 'receituario_especial' || tipo === 'receituario_controle_especial') &&
                 <ReceituarioForm especial={tipo !== 'receituario'} onChange={setDados} />}
@@ -465,7 +548,7 @@ function NovoDocModal({ onClose, onSaved }: { onClose: () => void; onSaved: (d: 
         {step === 2 && (
           <div className="px-6 py-4 border-t border-gray-100 flex gap-3 justify-end shrink-0">
             <button onClick={onClose} className="btn-secondary">Cancelar</button>
-            <button onClick={salvar} disabled={saving || !paciente.trim()} className="btn-primary disabled:opacity-40">
+            <button onClick={salvar} disabled={saving || !paciente} className="btn-primary disabled:opacity-40">
               {saving ? 'Salvando...' : 'Salvar documento'}
             </button>
           </div>

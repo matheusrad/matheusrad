@@ -7,8 +7,12 @@ import { ptBR } from 'date-fns/locale'
 import { Printer, ArrowLeft, PenLine, Upload, X, RotateCcw } from 'lucide-react'
 
 interface DocRow {
-  id: string; tipo: string; paciente_nome: string | null
+  id: string; tipo: string; paciente_nome: string | null; paciente_id: string | null
   numero_documento: string | null; conteudo_texto: string | null; created_at: string
+}
+interface PacienteRow {
+  id: string; nome: string; telefone: string | null; endereco: string | null
+  cpf: string | null; data_nascimento: string | null; email: string | null
 }
 interface Clinica {
   nome: string; cnpj: string | null; cro: string | null; telefone: string | null; whatsapp: string | null
@@ -177,7 +181,7 @@ function Rodape({ clinica }: { clinica: Clinica }) {
 
 // ─── tipos de documento ───────────────────────────────────────────────────────
 
-function PrintReceituario({ doc, clinica, assinatura, especial }: { doc: DocRow; clinica: Clinica; assinatura: string | null; especial?: boolean }) {
+function PrintReceituario({ doc, clinica, assinatura, especial }: { doc: DocRow; clinica: Clinica; assinatura: string | null; paciente?: PacienteRow | null; especial?: boolean }) {
   const dados = JSON.parse(doc.conteudo_texto ?? '{}')
   const meds: { nome: string; posologia: string }[] = dados.medicamentos ?? []
   return (
@@ -217,7 +221,7 @@ function PrintReceituario({ doc, clinica, assinatura, especial }: { doc: DocRow;
   )
 }
 
-function PrintAtestado({ doc, clinica, assinatura }: { doc: DocRow; clinica: Clinica; assinatura: string | null }) {
+function PrintAtestado({ doc, clinica, assinatura }: { doc: DocRow; clinica: Clinica; assinatura: string | null; paciente?: PacienteRow | null }) {
   const dados = JSON.parse(doc.conteudo_texto ?? '{}')
   const isComp = dados.tipo === 'comparecimento'
   const dataConsulta = dados.data_consulta
@@ -247,7 +251,7 @@ function PrintAtestado({ doc, clinica, assinatura }: { doc: DocRow; clinica: Cli
   )
 }
 
-function PrintPedidoExame({ doc, clinica, assinatura }: { doc: DocRow; clinica: Clinica; assinatura: string | null }) {
+function PrintPedidoExame({ doc, clinica, assinatura }: { doc: DocRow; clinica: Clinica; assinatura: string | null; paciente?: PacienteRow | null }) {
   const dados = JSON.parse(doc.conteudo_texto ?? '{}')
   const exames: { nome: string; descricao?: string }[] = dados.exames ?? []
   return (
@@ -285,7 +289,7 @@ function PrintPedidoExame({ doc, clinica, assinatura }: { doc: DocRow; clinica: 
 
 const RCE_COR = '#9b2d78'
 
-function ViaRCE({ doc, clinica, assinatura }: { doc: DocRow; clinica: Clinica; assinatura: string | null }) {
+function ViaRCE({ doc, clinica, assinatura, paciente }: { doc: DocRow; clinica: Clinica; assinatura: string | null; paciente?: PacienteRow | null }) {
   const dados = JSON.parse(doc.conteudo_texto ?? '{}')
   const meds: { nome: string; posologia: string }[] = dados.medicamentos ?? []
   const c = RCE_COR
@@ -328,7 +332,7 @@ function ViaRCE({ doc, clinica, assinatura }: { doc: DocRow; clinica: Clinica; a
       {/* Campos do paciente */}
       {[
         { label: 'Paciente:', value: doc.paciente_nome ?? '' },
-        { label: 'Endereço:', value: '' },
+        { label: 'Endereço:', value: paciente?.endereco ?? '' },
         { label: 'Prescrição:', value: '' },
       ].map(({ label, value }) => (
         <div key={label} style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', marginBottom: '6px' }}>
@@ -426,14 +430,14 @@ function ViaRCE({ doc, clinica, assinatura }: { doc: DocRow; clinica: Clinica; a
   )
 }
 
-function PrintReceituarioControleEspecial({ doc, clinica, assinatura }: { doc: DocRow; clinica: Clinica; assinatura: string | null }) {
+function PrintReceituarioControleEspecial({ doc, clinica, assinatura, paciente }: { doc: DocRow; clinica: Clinica; assinatura: string | null; paciente?: PacienteRow | null }) {
   return (
     <>
-      <ViaRCE doc={doc} clinica={clinica} assinatura={assinatura} />
+      <ViaRCE doc={doc} clinica={clinica} assinatura={assinatura} paciente={paciente} />
       <div className="rce-separador">
         ✂ · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·
       </div>
-      <ViaRCE doc={doc} clinica={clinica} assinatura={assinatura} />
+      <ViaRCE doc={doc} clinica={clinica} assinatura={assinatura} paciente={paciente} />
     </>
   )
 }
@@ -445,6 +449,7 @@ export default function DocumentoPrintPage() {
   const router = useRouter()
   const [doc,       setDoc]       = useState<DocRow | null>(null)
   const [clinica,   setClinica]   = useState<Clinica>(CLINICA_PADRAO)
+  const [paciente,  setPaciente]  = useState<PacienteRow | null>(null)
   const [assinatura, setAssinatura] = useState<string | null>(null)
   const [loading,   setLoading]   = useState(true)
 
@@ -452,8 +457,19 @@ export default function DocumentoPrintPage() {
     Promise.all([
       supabase.from('documentos').select('*').eq('id', params.id as string).single(),
       supabase.from('configuracoes_clinica').select('*').limit(1).single(),
-    ]).then(([{ data: doc }, { data: cfg }]) => {
-      if (doc) setDoc(doc as DocRow)
+    ]).then(async ([{ data: docData }, { data: cfg }]) => {
+      const doc = docData as DocRow | null
+      if (doc) {
+        setDoc(doc)
+        if (doc.paciente_id) {
+          const { data: p } = await supabase
+            .from('pacientes')
+            .select('id, nome, telefone, endereco, cpf, data_nascimento, email')
+            .eq('id', doc.paciente_id)
+            .single()
+          if (p) setPaciente(p as PacienteRow)
+        }
+      }
       if (cfg) {
         setClinica(cfg as Clinica)
         if ((cfg as Clinica).assinatura_base64) setAssinatura((cfg as Clinica).assinatura_base64)
@@ -474,7 +490,7 @@ export default function DocumentoPrintPage() {
 
   function renderDoc() {
     if (!doc) return null
-    const props = { doc, clinica, assinatura }
+    const props = { doc, clinica, assinatura, paciente }
     switch (doc.tipo) {
       case 'receituario':                   return <PrintReceituario {...props} />
       case 'receituario_especial':          return <PrintReceituario {...props} especial />
