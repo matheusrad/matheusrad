@@ -131,36 +131,34 @@ function Cabecalho({ clinica, data }: { clinica: Clinica; data: string }) {
 }
 
 function Assinatura({ clinica, assinatura }: { clinica: Clinica; assinatura: string | null }) {
+  return (
+    <div className="mt-16 flex justify-center">
+      <div className="text-center w-72">
+        {assinatura ? (
+          <img src={assinatura} alt="Assinatura" className="h-16 mx-auto object-contain mb-1" />
+        ) : (
+          <div className="h-16 mb-1" />
+        )}
+        <div className="border-b border-gray-600 mb-2" />
+        <p className="text-base font-bold text-gray-900">{clinica.dentista_nome ?? clinica.nome}</p>
+        {clinica.dentista_cro && <p className="text-sm text-gray-500">{clinica.dentista_cro}</p>}
+      </div>
+    </div>
+  )
+}
+
+function Rodape({ clinica }: { clinica: Clinica }) {
   const enderecoCompleto = [
     clinica.endereco, clinica.numero, clinica.complemento,
     clinica.bairro, clinica.cidade && clinica.estado ? `${clinica.cidade} – ${clinica.estado}` : clinica.cidade,
     clinica.cep,
   ].filter(Boolean).join(', ')
-
   const wp = clinica.whatsapp || clinica.telefone
-
   return (
-    <div className="mt-16">
-      {/* Área de assinatura */}
-      <div className="flex justify-center">
-        <div className="text-center w-72">
-          {assinatura ? (
-            <img src={assinatura} alt="Assinatura" className="h-16 mx-auto object-contain mb-1" />
-          ) : (
-            <div className="h-16 mb-1" />
-          )}
-          <div className="border-b border-gray-600 mb-2" />
-          <p className="text-base font-bold text-gray-900">{clinica.dentista_nome ?? clinica.nome}</p>
-          {clinica.dentista_cro && <p className="text-sm text-gray-500">{clinica.dentista_cro}</p>}
-        </div>
-      </div>
-
-      {/* Rodapé com endereço */}
-      <div className="mt-10 pt-4 border-t border-gray-200 text-center text-xs text-gray-400 space-y-0.5">
-        {enderecoCompleto && <p>{enderecoCompleto}</p>}
-        {wp && <p>WhatsApp / Tel: {wp}</p>}
-        {clinica.email && <p>{clinica.email}</p>}
-      </div>
+    <div className="border-t border-gray-200 pt-3 text-center text-xs text-gray-400 space-y-0.5">
+      {enderecoCompleto && <p>{enderecoCompleto}</p>}
+      {wp && <p>WhatsApp / Tel: {wp}</p>}
+      {clinica.email && <p>{clinica.email}</p>}
     </div>
   )
 }
@@ -341,11 +339,15 @@ export default function DocumentoPrintPage() {
       </div>
 
       {/* Prévia do documento — fundo cinza simulando folha A4 */}
-      <div className="print:hidden print:mt-0 bg-gray-100 min-h-screen flex justify-center pt-6 pb-16 px-4">
+      <div className="print:hidden bg-gray-100 min-h-screen flex justify-center pt-6 pb-16 px-4">
         <div className="w-full max-w-[210mm]">
           <p className="text-xs text-gray-400 text-center mb-3">Prévia do documento · A4</p>
-          <div className="bg-white shadow-xl rounded-sm p-[18mm] min-h-[297mm]">
-            {renderDoc()}
+          {/* papel A4: flex column para empurrar rodapé pro fundo */}
+          <div className="bg-white shadow-xl rounded-sm p-[18mm] min-h-[297mm] flex flex-col">
+            <div className="flex-1">
+              {renderDoc()}
+            </div>
+            <Rodape clinica={clinica} />
           </div>
         </div>
       </div>
@@ -357,11 +359,43 @@ export default function DocumentoPrintPage() {
 
       <style>{`
         @media print {
-          @page { size: A4; margin: 20mm 18mm; }
+          @page { size: A4; margin: 20mm 18mm 28mm; }
           body { -webkit-print-color-adjust: exact; background: white; }
           * { box-shadow: none !important; }
+          .rodape-print {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 8px 18mm 12px;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+            font-size: 11px;
+            color: #9ca3af;
+            line-height: 1.6;
+          }
         }
       `}</style>
+
+      {/* Rodapé fixo apenas na impressão */}
+      <div className="rodape-print hidden">
+        {(() => {
+          const enderecoCompleto = [
+            clinica.endereco, clinica.numero, clinica.complemento,
+            clinica.bairro, clinica.cidade && clinica.estado ? `${clinica.cidade} – ${clinica.estado}` : clinica.cidade,
+            clinica.cep,
+          ].filter(Boolean).join(', ')
+          const wp = clinica.whatsapp || clinica.telefone
+          return (
+            <>
+              {enderecoCompleto && <p>{enderecoCompleto}</p>}
+              {wp && <p>WhatsApp / Tel: {wp}</p>}
+              {clinica.email && <p>{clinica.email}</p>}
+            </>
+          )
+        })()}
+      </div>
     </>
   )
 }
