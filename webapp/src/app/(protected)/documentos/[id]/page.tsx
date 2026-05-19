@@ -221,31 +221,90 @@ function PrintReceituario({ doc, clinica, assinatura, especial }: { doc: DocRow;
   )
 }
 
-function PrintAtestado({ doc, clinica, assinatura }: { doc: DocRow; clinica: Clinica; assinatura: string | null; paciente?: PacienteRow | null }) {
+function PrintAtestado({ doc, clinica, assinatura, paciente }: { doc: DocRow; clinica: Clinica; assinatura: string | null; paciente?: PacienteRow | null }) {
   const dados = JSON.parse(doc.conteudo_texto ?? '{}')
   const isComp = dados.tipo === 'comparecimento'
+
   const dataConsulta = dados.data_consulta
     ? format(parseISO(dados.data_consulta), "d 'de' MMMM 'de' yyyy", { locale: ptBR })
     : '—'
+
+  const identificacao = [
+    paciente?.cpf ? `CPF: ${paciente.cpf}` : null,
+    paciente?.data_nascimento
+      ? `nascido(a) em ${format(parseISO(paciente.data_nascimento), 'dd/MM/yyyy')}`
+      : null,
+  ].filter(Boolean).join(', ')
+
+  const horaTexto = dados.hora_inicio && dados.hora_fim
+    ? ` no horário das ${dados.hora_inicio} às ${dados.hora_fim}`
+    : dados.hora_inicio ? ` a partir das ${dados.hora_inicio}` : ''
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1">
         <Cabecalho clinica={clinica} />
-        <p className="text-center font-bold text-sm uppercase tracking-widest mb-8">Atestado Odontológico</p>
-        <p className="text-sm leading-7 text-gray-800">
-          Atesto para os devidos fins que o(a) paciente <strong>{doc.paciente_nome}</strong>
-          {isComp
-            ? <> compareceu a esta clínica no dia <strong>{dataConsulta}</strong>
-                {dados.duracao && <>, pelo período de <strong>{dados.duracao}</strong></>},
-                para tratamento odontológico.</>
-            : <> encontra-se impossibilitado(a) de exercer suas atividades pelo período de{' '}
-                <strong>{dados.duracao ?? '—'}</strong>, a partir de <strong>{dataConsulta}</strong>,
-                em decorrência de tratamento odontológico.</>
-          }
+
+        <p className="text-center font-bold text-sm uppercase tracking-widest mb-10">
+          {isComp ? 'Declaração de Comparecimento' : 'Atestado Odontológico'}
         </p>
-        {dados.cid && <p className="text-sm mt-3 text-gray-500">CID: {dados.cid}</p>}
-        {dados.observacoes && <p className="text-sm mt-2 text-gray-500">{dados.observacoes}</p>}
+
+        {/* Corpo do atestado */}
+        <div className="text-sm leading-8 text-gray-800 text-justify">
+          {isComp ? (
+            <>
+              <p>
+                Atesto para os devidos fins que o(a) paciente{' '}
+                <strong>{doc.paciente_nome}</strong>
+                {identificacao ? `, ${identificacao},` : ','}{' '}
+                compareceu a esta clínica odontológica no dia{' '}
+                <strong>{dataConsulta}</strong>
+                {horaTexto && <><strong>{horaTexto}</strong></>},
+                para realização de tratamento odontológico
+                {dados.procedimento ? ` (${dados.procedimento})` : ''}.
+              </p>
+              <p className="mt-4">
+                O presente documento é emitido a pedido do(a) interessado(a) para os fins que se fizerem necessários, em conformidade com o art. 17, inciso VII, do Código de Ética Odontológica.
+              </p>
+            </>
+          ) : (
+            <>
+              <p>
+                Atesto para os devidos fins que o(a) paciente{' '}
+                <strong>{doc.paciente_nome}</strong>
+                {identificacao ? `, ${identificacao},` : ','}{' '}
+                esteve sob meus cuidados profissionais e encontra-se
+                impossibilitado(a) de exercer suas atividades habituais
+                pelo período de{' '}
+                <strong>{dados.duracao ?? '___'}</strong>,
+                a partir de <strong>{dataConsulta}</strong>,
+                em decorrência de tratamento odontológico
+                {dados.procedimento ? ` (${dados.procedimento})` : ''}.
+              </p>
+              <p className="mt-4">
+                O presente atestado é fornecido para os devidos fins, em conformidade com o art. 17, inciso VII, do Código de Ética Odontológica (Resolução CFO-118/2012).
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* CID e observações */}
+        {(dados.cid || dados.observacoes) && (
+          <div className="mt-6 space-y-1.5">
+            {dados.cid && (
+              <p className="text-sm text-gray-600">
+                <span className="font-semibold">CID-10:</span> {dados.cid}
+              </p>
+            )}
+            {dados.observacoes && (
+              <p className="text-sm text-gray-600">
+                <span className="font-semibold">Observações:</span> {dados.observacoes}
+              </p>
+            )}
+          </div>
+        )}
       </div>
+
       <Assinatura clinica={clinica} assinatura={assinatura} data={doc.created_at} />
     </div>
   )

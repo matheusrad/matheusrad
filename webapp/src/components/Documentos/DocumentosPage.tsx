@@ -299,14 +299,20 @@ function ReceituarioForm({ especial, onChange }: { especial?: boolean; onChange:
 // ─── formulário atestado ──────────────────────────────────────────────────────
 
 function AtestadoForm({ onChange }: { onChange: (d: object) => void }) {
-  const [tipoAt, setTipoAt]   = useState<'comparecimento' | 'incapacidade'>('comparecimento')
-  const [data,   setData]     = useState(format(new Date(), 'yyyy-MM-dd'))
-  const [duracao, setDuracao] = useState('')
-  const [cid,    setCid]      = useState('')
-  const [obs,    setObs]      = useState('')
+  const [tipoAt,     setTipoAt]     = useState<'comparecimento' | 'incapacidade'>('comparecimento')
+  const [data,       setData]       = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [horaInicio, setHoraInicio] = useState('')
+  const [horaFim,    setHoraFim]    = useState('')
+  const [duracao,    setDuracao]    = useState('')
+  const [cid,        setCid]        = useState('')
+  const [obs,        setObs]        = useState('')
+  const [procedimento, setProcedimento] = useState('')
 
-  function update(t = tipoAt, d = data, dur = duracao, c = cid, o = obs) {
-    onChange({ tipo: t, data_consulta: d, duracao: dur, cid: c, observacoes: o })
+  function update(
+    t = tipoAt, d = data, hi = horaInicio, hf = horaFim,
+    dur = duracao, c = cid, o = obs, proc = procedimento
+  ) {
+    onChange({ tipo: t, data_consulta: d, hora_inicio: hi, hora_fim: hf, duracao: dur, cid: c, observacoes: o, procedimento: proc })
   }
 
   return (
@@ -318,31 +324,57 @@ function AtestadoForm({ onChange }: { onChange: (d: object) => void }) {
             <button key={t} type="button" onClick={() => { setTipoAt(t); update(t) }}
               className={clsx('flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-colors',
                 tipoAt === t ? 'bg-blue-50 border-blue-400 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-gray-300')}>
-              {t === 'comparecimento' ? 'Comparecimento' : 'Incapacidade'}
+              {t === 'comparecimento' ? 'Comparecimento' : 'Afastamento'}
             </button>
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="label">Data da consulta</label>
-          <input type="date" className="input" value={data} onChange={e => { setData(e.target.value); update(tipoAt, e.target.value) }} />
-        </div>
-        <div>
-          <label className="label">{tipoAt === 'comparecimento' ? 'Duração (ex: 2 horas)' : 'Afastamento (ex: 3 dias)'}</label>
-          <input className="input" placeholder={tipoAt === 'comparecimento' ? '2 horas' : '3 dias'} value={duracao}
-            onChange={e => { setDuracao(e.target.value); update(tipoAt, data, e.target.value) }} />
-        </div>
+
+      <div>
+        <label className="label">Data da consulta</label>
+        <input type="date" className="input" value={data}
+          onChange={e => { setData(e.target.value); update(tipoAt, e.target.value) }} />
       </div>
+
+      {tipoAt === 'comparecimento' && (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Hora de entrada</label>
+            <input type="time" className="input" value={horaInicio}
+              onChange={e => { setHoraInicio(e.target.value); update(tipoAt, data, e.target.value) }} />
+          </div>
+          <div>
+            <label className="label">Hora de saída</label>
+            <input type="time" className="input" value={horaFim}
+              onChange={e => { setHoraFim(e.target.value); update(tipoAt, data, horaInicio, e.target.value) }} />
+          </div>
+        </div>
+      )}
+
+      {tipoAt === 'incapacidade' && (
+        <div>
+          <label className="label">Dias de afastamento</label>
+          <input className="input" placeholder="Ex: 2 (dois) dias" value={duracao}
+            onChange={e => { setDuracao(e.target.value); update(tipoAt, data, horaInicio, horaFim, e.target.value) }} />
+        </div>
+      )}
+
+      <div>
+        <label className="label">Procedimento realizado (opcional)</label>
+        <input className="input" placeholder="Ex: Exodontia, tratamento de canal, restauração..." value={procedimento}
+          onChange={e => { setProcedimento(e.target.value); update(tipoAt, data, horaInicio, horaFim, duracao, cid, obs, e.target.value) }} />
+      </div>
+
       <div>
         <label className="label">CID (opcional)</label>
-        <input className="input" placeholder="Ex: K08.8 – Outros transtornos dos dentes" value={cid}
-          onChange={e => { setCid(e.target.value); update(tipoAt, data, duracao, e.target.value) }} />
+        <input className="input" placeholder="Ex: K04.0 – Pulpite" value={cid}
+          onChange={e => { setCid(e.target.value); update(tipoAt, data, horaInicio, horaFim, duracao, e.target.value) }} />
       </div>
+
       <div>
         <label className="label">Observações (opcional)</label>
         <textarea className="input w-full resize-none text-sm" rows={2} value={obs}
-          onChange={e => { setObs(e.target.value); update(tipoAt, data, duracao, cid, e.target.value) }} />
+          onChange={e => { setObs(e.target.value); update(tipoAt, data, horaInicio, horaFim, duracao, cid, e.target.value) }} />
       </div>
     </div>
   )
