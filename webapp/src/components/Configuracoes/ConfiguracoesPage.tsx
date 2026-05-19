@@ -267,7 +267,7 @@ function MensagensSecao() {
       </div>
       <div className="flex-1 space-y-2">
         <div className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
-          Variáveis disponíveis: <code className="text-blue-600">{'{{nome}}'}</code> <code className="text-blue-600">{'{{data}}'}</code> <code className="text-blue-600">{'{{hora}}'}</code> <code className="text-blue-600">{'{{convenio}}'}</code>
+          Variáveis disponíveis: <code className="text-blue-600">{'{{'+'nome'+'}}' }</code> <code className="text-blue-600">{'{{'+'data'+'}}' }</code> <code className="text-blue-600">{'{{'+'hora'+'}}' }</code> <code className="text-blue-600">{'{{'+'convenio'+'}}' }</code>
         </div>
         <textarea
           rows={7}
@@ -426,7 +426,6 @@ function ClinicaSecao({ registerSalvar }: { registerSalvar?: (fn: () => Promise<
 
   return (
     <div className="space-y-6">
-      {/* Dados da clínica */}
       <div>
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Dados da clínica</p>
         <div className="flex gap-4">
@@ -492,7 +491,6 @@ function ClinicaSecao({ registerSalvar }: { registerSalvar?: (fn: () => Promise<
         </div>
       </div>
 
-      {/* Endereço */}
       <div>
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Endereço</p>
         <div className="space-y-3">
@@ -533,7 +531,6 @@ function ClinicaSecao({ registerSalvar }: { registerSalvar?: (fn: () => Promise<
         </div>
       </div>
 
-      {/* Recursos + Contabilidade */}
       <div className="grid grid-cols-2 gap-4">
         <div className="border border-gray-100 rounded-2xl p-5">
           <p className="font-medium text-gray-800 mb-4">Recursos</p>
@@ -577,7 +574,6 @@ function ClinicaSecao({ registerSalvar }: { registerSalvar?: (fn: () => Promise<
         </div>
       </div>
 
-      {/* feedback */}
       {ok   && <p className="text-sm text-green-600 font-medium text-right">✓ Salvo</p>}
       {erro && <p className="text-sm text-red-600 text-right">{erro}</p>}
     </div>
@@ -636,7 +632,6 @@ export function ConfiguracoesPage() {
       </div>
 
       <div className="flex gap-6">
-        {/* Menu lateral */}
         <div className="w-56 shrink-0">
           <div className="card overflow-hidden">
             {secoes.map(s => {
@@ -658,7 +653,6 @@ export function ConfiguracoesPage() {
           </div>
         </div>
 
-        {/* Conteúdo */}
         <div className="flex-1 card p-6 space-y-6">
 
           {secaoAtiva === 'convenios' && <ConveniosSecao />}
@@ -690,7 +684,6 @@ export function ConfiguracoesPage() {
 
           {secaoAtiva === 'profissionais' && (
             <div className="-m-6">
-              {/* Cabeçalho interno */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                 <h2 className="font-semibold text-gray-900 text-base">Gestão de profissionais</h2>
                 <button onClick={() => { setEditando(null); setShowModal(true) }} className="btn-primary">

@@ -116,7 +116,6 @@ function Cabecalho({ clinica }: { clinica: Clinica }) {
 
   return (
     <div className="flex items-center gap-5 border-b-2 border-gray-700 pb-4 mb-8">
-      {/* Logo — reserva espaço mesmo sem imagem para manter layout */}
       <div className="w-24 h-24 shrink-0 flex items-center justify-center">
         {clinica.logo_base64 ? (
           <img src={clinica.logo_base64} alt="Logo" className="w-24 h-24 object-contain" />
@@ -126,7 +125,6 @@ function Cabecalho({ clinica }: { clinica: Clinica }) {
           </div>
         )}
       </div>
-      {/* Dados da clínica */}
       <div>
         <h1 className="text-lg font-bold text-gray-900 leading-tight">{clinica.nome}</h1>
         {enderecoLinha && <p className="text-xs text-gray-600 mt-0.5">{enderecoLinha}</p>}
@@ -142,11 +140,9 @@ function Assinatura({ clinica, assinatura, data }: { clinica: Clinica; assinatur
 
   return (
     <div className="mt-12">
-      {/* Cidade + data acima, lado esquerdo */}
       <p className="text-sm text-gray-600 mb-6">
         {cidade ? `${cidade}, ` : ''}{dataFormatada}
       </p>
-      {/* Assinatura + nome + CRO centralizados */}
       <div className="flex justify-center">
         <div className="text-center w-64">
           {assinatura ? (
@@ -358,7 +354,6 @@ export default function DocumentoPrintPage() {
       <div className="print:hidden bg-gray-100 min-h-screen flex justify-center pt-6 pb-16 px-4">
         <div className="w-full max-w-[210mm]">
           <p className="text-xs text-gray-400 text-center mb-3">Prévia do documento · A4</p>
-          {/* papel A4: flex column para empurrar rodapé pro fundo */}
           <div className="bg-white shadow-xl rounded-sm p-[18mm] min-h-[297mm] flex flex-col">
             <div className="flex-1">
               {renderDoc()}
@@ -378,7 +373,6 @@ export default function DocumentoPrintPage() {
 
       <style>{`
         @media print {
-          /* margin:0 remove o cabeçalho/rodapé do navegador (data, título, URL) */
           @page { size: A4; margin: 0; }
           body {
             -webkit-print-color-adjust: exact;
@@ -415,7 +409,7 @@ export default function DocumentoPrintPage() {
         }
       `}</style>
 
-      {/* Rodapé fixo na impressão — hidden na tela, visível só no print via CSS acima */}
+      {/* Rodapé fixo na impressão */}
       <div className="rodape-print" style={{ display: 'none' }}>
         <Rodape clinica={clinica} />
       </div>
