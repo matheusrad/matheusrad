@@ -141,22 +141,23 @@ function Assinatura({ clinica, assinatura, data }: { clinica: Clinica; assinatur
   const dataFormatada = format(parseISO(data), "d 'de' MMMM 'de' yyyy", { locale: ptBR })
 
   return (
-    <div className="mt-16 flex items-end justify-between">
-      {/* Cidade + data */}
-      <p className="text-sm text-gray-600">
+    <div className="mt-12">
+      {/* Cidade + data acima, lado esquerdo */}
+      <p className="text-sm text-gray-600 mb-6">
         {cidade ? `${cidade}, ` : ''}{dataFormatada}
       </p>
-
-      {/* Assinatura + nome + CRO */}
-      <div className="text-center min-w-[200px]">
-        {assinatura ? (
-          <img src={assinatura} alt="Assinatura" className="h-14 mx-auto object-contain mb-1" />
-        ) : (
-          <div className="h-14 mb-1" />
-        )}
-        <div className="border-b border-gray-600 mb-1.5" />
-        <p className="text-sm font-bold text-gray-900">{clinica.dentista_nome ?? clinica.nome}</p>
-        {clinica.dentista_cro && <p className="text-xs text-gray-500">{clinica.dentista_cro}</p>}
+      {/* Assinatura + nome + CRO centralizados */}
+      <div className="flex justify-center">
+        <div className="text-center w-64">
+          {assinatura ? (
+            <img src={assinatura} alt="Assinatura" className="h-14 mx-auto object-contain mb-1" />
+          ) : (
+            <div className="h-14 mb-1" />
+          )}
+          <div className="border-b border-gray-600 mb-1.5" />
+          <p className="text-sm font-bold text-gray-900">{clinica.dentista_nome ?? clinica.nome}</p>
+          {clinica.dentista_cro && <p className="text-xs text-gray-500">{clinica.dentista_cro}</p>}
+        </div>
       </div>
     </div>
   )
@@ -170,7 +171,7 @@ function Rodape({ clinica }: { clinica: Clinica }) {
   ].filter(Boolean).join(', ')
   const wp = clinica.whatsapp || clinica.telefone
   return (
-    <div className="border-t border-gray-200 pt-3 text-center text-xs text-gray-400 space-y-0.5">
+    <div className="pt-3 text-center text-xs text-gray-400 space-y-0.5">
       {enderecoCompleto && <p>{enderecoCompleto}</p>}
       {wp && <p>WhatsApp / Tel: {wp}</p>}
       {clinica.email && <p>{clinica.email}</p>}
@@ -187,7 +188,7 @@ function PrintReceituario({ doc, clinica, assinatura, especial }: { doc: DocRow;
     <div>
       <Cabecalho clinica={clinica} />
       <p className="text-center font-bold text-sm uppercase tracking-widest mb-6">
-        {especial ? 'Receituário Especial' : 'Receituário Médico'}
+        {especial ? 'Receituário Especial' : 'Receituário'}
       </p>
       <p className="text-sm mb-5"><span className="font-medium">Paciente:</span> {doc.paciente_nome}</p>
       {especial && dados.numero_notificacao && (
@@ -367,29 +368,49 @@ export default function DocumentoPrintPage() {
         </div>
       </div>
 
-      {/* Versão que será impressa — sem fundo cinza */}
-      <div className="hidden print:block">
+      {/* Versão que será impressa */}
+      <div className="hidden print:block print-body">
         {renderDoc()}
       </div>
 
+      {/* Número de página — só na impressão */}
+      <div className="page-num hidden">1</div>
+
       <style>{`
         @media print {
-          @page { size: A4; margin: 20mm 18mm 28mm; }
-          body { -webkit-print-color-adjust: exact; background: white; }
+          /* margin:0 remove o cabeçalho/rodapé do navegador (data, título, URL) */
+          @page { size: A4; margin: 0; }
+          body {
+            -webkit-print-color-adjust: exact;
+            background: white;
+          }
           * { box-shadow: none !important; }
+          .print-body {
+            padding: 18mm 18mm 32mm;
+            min-height: 297mm;
+            position: relative;
+          }
           .rodape-print {
             display: block !important;
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            padding: 8px 18mm 14px;
+            padding: 6px 18mm 10px;
             background: white;
             border-top: 1px solid #e5e7eb;
             text-align: center;
             font-size: 11px;
             color: #9ca3af;
             line-height: 1.7;
+          }
+          .page-num {
+            display: block !important;
+            position: fixed;
+            bottom: 4mm;
+            right: 18mm;
+            font-size: 10px;
+            color: #d1d5db;
           }
         }
       `}</style>
