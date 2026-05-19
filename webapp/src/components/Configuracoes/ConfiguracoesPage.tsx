@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Save, User, Building, ChevronRight, Plus, Pencil, Trash2, X, FileText, MessageSquare, CreditCard, Stethoscope, MoreVertical } from 'lucide-react'
 import clsx from 'clsx'
 import { supabase } from '@/lib/supabase'
@@ -355,7 +355,7 @@ const CONFIG_VAZIA: ClinicaConfig = {
   dentista_nome: 'Dra. Lorena Coutinho', dentista_cro: '',
 }
 
-function ClinicaSecao({ onSalvar }: { onSalvar?: (salvando: boolean) => void }) {
+function ClinicaSecao({ registerSalvar }: { registerSalvar?: (fn: () => Promise<void>) => void }) {
   const [cfg,      setCfg]      = useState<ClinicaConfig>(CONFIG_VAZIA)
   const [loading,  setLoading]  = useState(true)
   const [salvando, setSalvando] = useState(false)
@@ -403,6 +403,10 @@ function ClinicaSecao({ onSalvar }: { onSalvar?: (salvando: boolean) => void }) 
     if (!file) return
     setLogo(URL.createObjectURL(file))
   }
+
+  useEffect(() => {
+    registerSalvar?.(salvar)
+  })
 
   if (loading) return <div className="py-12 text-center text-sm text-gray-400">Carregando...</div>
 
@@ -559,14 +563,9 @@ function ClinicaSecao({ onSalvar }: { onSalvar?: (salvando: boolean) => void }) 
         </div>
       </div>
 
-      {/* Botão salvar próprio */}
-      <div className="flex items-center justify-end gap-3 pt-2">
-        {ok   && <span className="text-sm text-green-600 font-medium">✓ Configurações salvas</span>}
-        {erro && <span className="text-sm text-red-600">{erro}</span>}
-        <button onClick={salvar} disabled={salvando} className="btn-primary disabled:opacity-60">
-          <Save size={15} /> {salvando ? 'Salvando...' : 'Salvar configurações'}
-        </button>
-      </div>
+      {/* feedback */}
+      {ok   && <p className="text-sm text-green-600 font-medium text-right">✓ Salvo</p>}
+      {erro && <p className="text-sm text-red-600 text-right">{erro}</p>}
     </div>
   )
 }
@@ -578,6 +577,10 @@ export function ConfiguracoesPage() {
   const [showModal,   setShowModal]   = useState(false)
   const [editando,    setEditando]    = useState<Dentista | null>(null)
   const [deletando,   setDeletando]   = useState<string | null>(null)
+  const salvarClinicaRef = useRef<(() => Promise<void>) | null>(null)
+  const registerSalvarClinica = useCallback((fn: () => Promise<void>) => {
+    salvarClinicaRef.current = fn
+  }, [])
 
   useEffect(() => {
     if (secaoAtiva === 'profissionais') {
@@ -603,7 +606,9 @@ export function ConfiguracoesPage() {
 
   async function salvar() {
     setSalvando(true)
-    await new Promise(r => setTimeout(r, 800))
+    if (secaoAtiva === 'clinica' && salvarClinicaRef.current) {
+      await salvarClinicaRef.current()
+    }
     setSalvando(false)
   }
 
@@ -667,7 +672,7 @@ export function ConfiguracoesPage() {
 
           {secaoAtiva === 'mensagens' && <MensagensSecao />}
 
-          {secaoAtiva === 'clinica' && <ClinicaSecao />}
+          {secaoAtiva === 'clinica' && <ClinicaSecao registerSalvar={registerSalvarClinica} />}
 
           {secaoAtiva === 'profissionais' && (
             <div className="-m-6">
