@@ -106,42 +106,54 @@ function SignaturePad({ value, onChange }: { value: string | null; onChange: (b6
 
 // ─── componentes do documento ─────────────────────────────────────────────────
 
-function Cabecalho({ clinica, data }: { clinica: Clinica; data: string }) {
-  return (
-    <div className="flex items-center justify-between border-b-2 border-gray-800 pb-4 mb-6">
-      {/* Esquerda: nome da clínica */}
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">{clinica.nome}</h1>
-        {clinica.email && <p className="text-xs text-gray-400 mt-0.5">{clinica.email}</p>}
-      </div>
+function Cabecalho({ clinica }: { clinica: Clinica }) {
+  const wp = clinica.whatsapp || clinica.telefone
+  const enderecoLinha = [
+    clinica.endereco, clinica.numero, clinica.complemento,
+    clinica.bairro, clinica.cidade && clinica.estado
+      ? `${clinica.cidade} - ${clinica.estado}` : (clinica.cidade ?? clinica.estado),
+  ].filter(Boolean).join(', ')
 
-      {/* Direita: logo + data */}
-      <div className="flex flex-col items-end gap-1">
-        {clinica.logo_base64 ? (
-          <img src={clinica.logo_base64} alt="Logo" className="h-12 object-contain" />
-        ) : (
-          <div className="h-12 w-12 rounded-lg bg-blue-50 flex items-center justify-center text-blue-300 text-xs">logo</div>
-        )}
-        <p className="text-xs text-gray-400">
-          {format(parseISO(data), "d 'de' MMMM 'de' yyyy", { locale: ptBR })}
-        </p>
+  return (
+    <div className="flex items-center gap-5 border-b-2 border-gray-700 pb-4 mb-8">
+      {/* Logo */}
+      {clinica.logo_base64 ? (
+        <img src={clinica.logo_base64} alt="Logo" className="w-20 h-20 object-contain shrink-0" />
+      ) : (
+        <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center shrink-0 text-gray-300 text-xs print:hidden">logo</div>
+      )}
+      {/* Dados da clínica */}
+      <div>
+        <h1 className="text-lg font-bold text-gray-900 leading-tight">{clinica.nome}</h1>
+        {enderecoLinha && <p className="text-xs text-gray-600 mt-0.5">{enderecoLinha}</p>}
+        {wp && <p className="text-xs text-gray-600">Telefone: {wp}</p>}
+        {clinica.email && <p className="text-xs text-gray-500">{clinica.email}</p>}
       </div>
     </div>
   )
 }
 
-function Assinatura({ clinica, assinatura }: { clinica: Clinica; assinatura: string | null }) {
+function Assinatura({ clinica, assinatura, data }: { clinica: Clinica; assinatura: string | null; data: string }) {
+  const cidade = clinica.cidade ?? ''
+  const dataFormatada = format(parseISO(data), "d 'de' MMMM 'de' yyyy", { locale: ptBR })
+
   return (
-    <div className="mt-16 flex justify-center">
-      <div className="text-center w-72">
+    <div className="mt-16 flex items-end justify-between">
+      {/* Cidade + data */}
+      <p className="text-sm text-gray-600">
+        {cidade ? `${cidade}, ` : ''}{dataFormatada}
+      </p>
+
+      {/* Assinatura + nome + CRO */}
+      <div className="text-center min-w-[200px]">
         {assinatura ? (
-          <img src={assinatura} alt="Assinatura" className="h-16 mx-auto object-contain mb-1" />
+          <img src={assinatura} alt="Assinatura" className="h-14 mx-auto object-contain mb-1" />
         ) : (
-          <div className="h-16 mb-1" />
+          <div className="h-14 mb-1" />
         )}
-        <div className="border-b border-gray-600 mb-2" />
-        <p className="text-base font-bold text-gray-900">{clinica.dentista_nome ?? clinica.nome}</p>
-        {clinica.dentista_cro && <p className="text-sm text-gray-500">{clinica.dentista_cro}</p>}
+        <div className="border-b border-gray-600 mb-1.5" />
+        <p className="text-sm font-bold text-gray-900">{clinica.dentista_nome ?? clinica.nome}</p>
+        {clinica.dentista_cro && <p className="text-xs text-gray-500">{clinica.dentista_cro}</p>}
       </div>
     </div>
   )
@@ -170,7 +182,7 @@ function PrintReceituario({ doc, clinica, assinatura, especial }: { doc: DocRow;
   const meds: { nome: string; posologia: string }[] = dados.medicamentos ?? []
   return (
     <div>
-      <Cabecalho clinica={clinica} data={doc.created_at} />
+      <Cabecalho clinica={clinica} />
       <p className="text-center font-bold text-sm uppercase tracking-widest mb-6">
         {especial ? 'Receituário Especial' : 'Receituário Médico'}
       </p>
@@ -198,7 +210,7 @@ function PrintReceituario({ doc, clinica, assinatura, especial }: { doc: DocRow;
           <strong>1ª via: Farmácia · 2ª via: Paciente</strong>
         </p>
       )}
-      <Assinatura clinica={clinica} assinatura={assinatura} />
+      <Assinatura clinica={clinica} assinatura={assinatura} data={doc.created_at} />
     </div>
   )
 }
@@ -211,7 +223,7 @@ function PrintAtestado({ doc, clinica, assinatura }: { doc: DocRow; clinica: Cli
     : '—'
   return (
     <div>
-      <Cabecalho clinica={clinica} data={doc.created_at} />
+      <Cabecalho clinica={clinica} />
       <p className="text-center font-bold text-sm uppercase tracking-widest mb-8">Atestado Odontológico</p>
       <p className="text-sm leading-7 text-gray-800">
         Atesto para os devidos fins que o(a) paciente <strong>{doc.paciente_nome}</strong>
@@ -226,7 +238,7 @@ function PrintAtestado({ doc, clinica, assinatura }: { doc: DocRow; clinica: Cli
       </p>
       {dados.cid && <p className="text-sm mt-3 text-gray-500">CID: {dados.cid}</p>}
       {dados.observacoes && <p className="text-sm mt-2 text-gray-500">{dados.observacoes}</p>}
-      <Assinatura clinica={clinica} assinatura={assinatura} />
+      <Assinatura clinica={clinica} assinatura={assinatura} data={doc.created_at} />
     </div>
   )
 }
@@ -236,7 +248,7 @@ function PrintPedidoExame({ doc, clinica, assinatura }: { doc: DocRow; clinica: 
   const exames: { nome: string; descricao?: string }[] = dados.exames ?? []
   return (
     <div>
-      <Cabecalho clinica={clinica} data={doc.created_at} />
+      <Cabecalho clinica={clinica} />
       <p className="text-center font-bold text-sm uppercase tracking-widest mb-6">
         Solicitação de Exame{dados.urgente ? ' – URGENTE' : ''}
       </p>
@@ -258,7 +270,7 @@ function PrintPedidoExame({ doc, clinica, assinatura }: { doc: DocRow; clinica: 
           <p className="text-sm text-gray-700">{dados.indicacao}</p>
         </div>
       )}
-      <Assinatura clinica={clinica} assinatura={assinatura} />
+      <Assinatura clinica={clinica} assinatura={assinatura} data={doc.created_at} />
     </div>
   )
 }
