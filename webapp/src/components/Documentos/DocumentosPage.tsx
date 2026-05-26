@@ -521,7 +521,7 @@ function NovoDocModal({ onClose, onSaved }: { onClose: () => void; onSaved: (d: 
   async function salvar() {
     if (!tipo || !paciente) { setError('Selecione um paciente.'); return }
     setSaving(true); setError('')
-    const { data, error: err } = await supabase.from('documentos').insert({
+    const { data, error: err } = await (supabase.from('documentos') as any).insert({
       tipo,
       paciente_id:   paciente.id,
       paciente_nome: paciente.nome,

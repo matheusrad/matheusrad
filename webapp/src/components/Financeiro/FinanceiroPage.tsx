@@ -72,11 +72,11 @@ export function FinanceiroPage() {
       for (let i = 5; i >= 0; i--) {
         const m = subMonths(new Date(), i)
         const mesStr = format(m, 'yyyy-MM')
-        const { data: nfsMes } = await supabase.from('notas_fiscais')
+        const { data: nfsMes } = await (supabase.from('notas_fiscais') as any)
           .select('valor_liquido')
           .eq('mes_competencia', mesStr)
           .eq('status', 'Emitida')
-        const entradas = (nfsMes || []).reduce((s, n) => s + (n.valor_liquido || 0), 0)
+        const entradas = ((nfsMes || []) as any[]).reduce((s: number, n: any) => s + (n.valor_liquido || 0), 0)
         chartData.push({ mes: MESES[m.getMonth()], entradas, saidas: 0 })
       }
       setGraficoDados(chartData)

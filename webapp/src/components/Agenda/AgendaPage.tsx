@@ -64,6 +64,7 @@ const PROCEDIMENTOS = [
 interface Dentista { id: string; nome: string; especialidade: string | null; cro: string | null; cor: string; ativo: boolean }
 
 const STATUS_CFG: Record<string, { label: string; bg: string; bl: string; text: string; dot: string }> = {
+  Solicitado: { label: 'Solicitado', bg: 'bg-purple-50', bl: 'border-l-purple-500', text: 'text-purple-800', dot: 'bg-purple-500' },
   Agendado:   { label: 'Agendado',   bg: 'bg-blue-50',   bl: 'border-l-blue-500',   text: 'text-blue-800',   dot: 'bg-blue-500' },
   Confirmado: { label: 'Confirmado', bg: 'bg-green-50',  bl: 'border-l-green-500',  text: 'text-green-800',  dot: 'bg-green-500' },
   Aguardando: { label: 'Aguardando', bg: 'bg-orange-50', bl: 'border-l-orange-500', text: 'text-orange-800', dot: 'bg-orange-500' },
@@ -154,13 +155,30 @@ function ConsultaPopup({
   const [saving, setSaving]           = useState(false)
   const cfg = STATUS_CFG[statusLocal] || STATUS_CFG.Agendado
 
+  interface PepInfo {
+    tem_alergia: boolean; descricao_alergia: string | null
+    usa_medicamento: boolean; descricao_medicamento: string | null
+    tem_doenca_sistemica: boolean; descricao_doenca: string | null
+    total_consultas: number; data_ultima_consulta: string | null
+  }
+  const [pep, setPep] = useState<PepInfo | null>(null)
+
+  useEffect(() => {
+    if (!consulta.paciente_id) return
+    supabase.from('pacientes')
+      .select('tem_alergia,descricao_alergia,usa_medicamento,descricao_medicamento,tem_doenca_sistemica,descricao_doenca,total_consultas,data_ultima_consulta')
+      .eq('id', consulta.paciente_id)
+      .single()
+      .then(({ data }) => { if (data) setPep(data as PepInfo) })
+  }, [consulta.paciente_id])
+
   const ini  = parseISO(consulta.data_consulta)
   const fim  = consulta.data_fim_consulta ? parseISO(consulta.data_fim_consulta) : addHours(ini, 1)
   const tel  = (consulta.paciente_telefone || '').replace(/\D/g, '')
 
   async function changeStatus(s: string) {
     setSaving(true)
-    await supabase.from('consultas').update({ status: s }).eq('id', consulta.id)
+    await (supabase.from('consultas') as any).update({ status: s }).eq('id', consulta.id)
     setStatusLocal(s as Consulta['status'])
     onStatusChange(consulta.id, s)
 
@@ -206,12 +224,17 @@ function ConsultaPopup({
         </button>
 
         {/* Paciente */}
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-3">
           <div className="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-base shrink-0">
             {iniciais}
           </div>
           <div className="min-w-0">
-            <p className="font-semibold text-gray-900 truncate">{consulta.paciente_nome}</p>
+            <div className="flex items-center gap-2">
+              <p className="font-semibold text-gray-900 truncate">{consulta.paciente_nome}</p>
+              {statusLocal === 'Solicitado' && (
+                <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full shrink-0">ONLINE</span>
+              )}
+            </div>
             {tel && (
               <div className="flex items-center gap-1.5 mt-0.5">
                 <Phone size={11} className="text-gray-400 shrink-0" />
@@ -226,6 +249,30 @@ function ConsultaPopup({
             )}
           </div>
         </div>
+
+        {/* PEP — Alertas clínicos */}
+        {pep && (pep.tem_alergia || pep.usa_medicamento || pep.tem_doenca_sistemica) && (
+          <div className="mb-3 p-2.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1">
+            {pep.tem_alergia && (
+              <div className="flex items-start gap-1.5 text-xs text-amber-800">
+                <AlertCircle size={12} className="shrink-0 mt-0.5 text-amber-600" />
+                <span><span className="font-semibold">Alergia:</span> {pep.descricao_alergia ?? 'Sim'}</span>
+              </div>
+            )}
+            {pep.usa_medicamento && (
+              <div className="flex items-start gap-1.5 text-xs text-amber-800">
+                <AlertCircle size={12} className="shrink-0 mt-0.5 text-amber-600" />
+                <span><span className="font-semibold">Medicamentos:</span> {pep.descricao_medicamento ?? 'Sim'}</span>
+              </div>
+            )}
+            {pep.tem_doenca_sistemica && (
+              <div className="flex items-start gap-1.5 text-xs text-amber-800">
+                <AlertCircle size={12} className="shrink-0 mt-0.5 text-amber-600" />
+                <span><span className="font-semibold">Doença sistêmica:</span> {pep.descricao_doenca ?? 'Sim'}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Ações secundárias */}
         <div className="grid grid-cols-2 gap-2 mb-3">
@@ -378,23 +425,23 @@ function ConsultaModal({
       }
 
       if (isEdit) {
-        const { error: e } = await supabase.from('consultas').update(payload).eq('id', initial!.id)
+        const { error: e } = await (supabase.from('consultas') as any).update(payload).eq('id', initial!.id)
         if (e) throw e
         // Atualiza evento existente ou cria se não existia
         if (initial!.evento_google_id) {
           gcalAtualizar(initial!.evento_google_id, gcalPayload)
         } else {
           gcalCriar(gcalPayload).then(eventoId => {
-            if (eventoId) supabase.from('consultas').update({ evento_google_id: eventoId }).eq('id', initial!.id)
+            if (eventoId) (supabase.from('consultas') as any).update({ evento_google_id: eventoId }).eq('id', initial!.id)
           })
         }
       } else {
-        const { data: inserted, error: e } = await supabase.from('consultas').insert(payload).select().single()
+        const { data: inserted, error: e } = await (supabase.from('consultas') as any).insert(payload).select().single()
         if (e) throw e
         // Cria evento e salva ID
         gcalCriar(gcalPayload).then(eventoId => {
           if (eventoId && inserted) {
-            supabase.from('consultas').update({ evento_google_id: eventoId }).eq('id', (inserted as any).id)
+            (supabase.from('consultas') as any).update({ evento_google_id: eventoId }).eq('id', (inserted as any).id)
           }
         })
       }
@@ -483,7 +530,7 @@ function ConsultaModal({
             </div>
             <div>
               <label className="label">Status</label>
-              <select value={status} onChange={e => setStatus(e.target.value)} className="input">
+              <select value={status} onChange={e => setStatus(e.target.value as Consulta['status'])} className="input">
                 {Object.keys(STATUS_CFG).map(s => <option key={s}>{s}</option>)}
               </select>
             </div>
@@ -556,8 +603,8 @@ function ProfissionalModal({ onClose, onSaved }: { onClose: () => void; onSaved:
   async function handleSave() {
     if (!nome.trim()) { setError('Nome é obrigatório.'); return }
     setSaving(true); setError('')
-    const { data, error: e } = await supabase
-      .from('dentistas').insert({ nome: nome.trim(), especialidade: spec, cro: cro || null, cor })
+    const { data, error: e } = await (supabase.from('dentistas') as any)
+      .insert({ nome: nome.trim(), especialidade: spec, cro: cro || null, cor })
       .select().single()
     if (e) { setError(e.message); setSaving(false); return }
     onSaved(data as Dentista)
@@ -653,8 +700,8 @@ export function AgendaPage() {
   }, [])
 
   useEffect(() => {
-    supabase.from('configuracoes_clinica').select('pacientes_aguardando').limit(1).single()
-      .then(({ data }) => { if (data) setHabilitarAguardando(data.pacientes_aguardando ?? true) })
+    ;(supabase.from('configuracoes_clinica') as any).select('pacientes_aguardando').limit(1).single()
+      .then(({ data }: any) => { if (data) setHabilitarAguardando(data.pacientes_aguardando ?? true) })
   }, [])
 
   function consultasDoDia(dia: Date) {

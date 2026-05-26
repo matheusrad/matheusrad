@@ -38,9 +38,9 @@ function DentistaModal({ initial, onClose, onSaved }: {
     const payload = { nome: nome.trim(), email: email || null, especialidade: spec || null, cro: cro || null, cor }
     let data, err
     if (initial) {
-      ;({ data, error: err } = await supabase.from('dentistas').update(payload).eq('id', initial.id).select().single())
+      ;({ data, error: err } = await (supabase.from('dentistas') as any).update(payload).eq('id', initial.id).select().single())
     } else {
-      ;({ data, error: err } = await supabase.from('dentistas').insert(payload).select().single())
+      ;({ data, error: err } = await (supabase.from('dentistas') as any).insert(payload).select().single())
     }
     if (err) { setError(err.message); setSaving(false); return }
     onSaved(data as Dentista)
@@ -385,9 +385,9 @@ function ClinicaSecao({ registerSalvar }: { registerSalvar?: (fn: () => Promise<
 
     let error
     if (id) {
-      ;({ error } = await supabase.from('configuracoes_clinica').update(payload).eq('id', id))
+      ;({ error } = await (supabase.from('configuracoes_clinica') as any).update(payload).eq('id', id))
     } else {
-      const { data, error: err } = await supabase.from('configuracoes_clinica').insert(payload).select().single()
+      const { data, error: err } = await (supabase.from('configuracoes_clinica') as any).insert(payload).select().single()
       error = err
       if (data) setCfg(data as ClinicaConfig)
     }
@@ -658,7 +658,7 @@ export function ConfiguracoesPage() {
 
   async function handleDelete(id: string) {
     setDeletando(id)
-    await supabase.from('dentistas').update({ ativo: false }).eq('id', id)
+    await (supabase.from('dentistas') as any).update({ ativo: false }).eq('id', id)
     setDentistas(prev => prev.filter(d => d.id !== id))
     setDeletando(null)
   }

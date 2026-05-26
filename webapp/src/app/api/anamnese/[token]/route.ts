@@ -33,7 +33,7 @@ export async function GET(
     return NextResponse.json({ error: 'Este link expirou. Solicite um novo à clínica.' }, { status: 410 })
   }
 
-  const paciente = tokenRow.pacientes as { nome: string; telefone: string } | null
+  const paciente = (tokenRow.pacientes as unknown) as { nome: string; telefone: string } | null
 
   return NextResponse.json({
     paciente_id: tokenRow.paciente_id,
@@ -66,7 +66,7 @@ export async function POST(
   }
 
   const body = await req.json()
-  const paciente = tokenRow.pacientes as { nome: string } | null
+  const paciente = (tokenRow.pacientes as unknown) as { nome: string } | null
 
   // Salva anamnese
   const { error: insertErr } = await supabase.from('anamneses').insert({

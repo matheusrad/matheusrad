@@ -49,7 +49,10 @@ export interface Database {
           evento_google_id: string | null
           canal_agendamento: string
           data_agendamento: string
-          status: 'Agendado' | 'Confirmado' | 'Remarcado' | 'Cancelado' | 'Realizado' | 'Faltou'
+          status: 'Agendado' | 'Confirmado' | 'Remarcado' | 'Cancelado' | 'Realizado' | 'Faltou' | 'Aguardando' | 'Solicitado'
+          dentista_id: string | null
+          dentista_nome: string | null
+          paciente_email: string | null
           confirmacao_enviada: boolean
           confirmacao_resposta: string | null
           valor_cobrado: number | null
@@ -263,6 +266,59 @@ export interface Database {
         }
         Insert: Omit<Database['public']['Tables']['anamneses']['Row'], 'id' | 'created_at' | 'data_preenchimento'>
         Update: Partial<Database['public']['Tables']['anamneses']['Insert']>
+      }
+      dentistas: {
+        Row: {
+          id: string
+          nome: string
+          especialidade: string | null
+          cro: string | null
+          cor: string
+          ativo: boolean
+          email: string | null
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['dentistas']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['dentistas']['Insert']>
+      }
+      configuracoes_clinica: {
+        Row: {
+          id: string
+          nome: string
+          email: string | null
+          cnpj: string | null
+          telefone: string | null
+          whatsapp: string | null
+          fuso_horario: string | null
+          cro: string | null
+          cep: string | null
+          endereco: string | null
+          numero: string | null
+          complemento: string | null
+          bairro: string | null
+          cidade: string | null
+          estado: string | null
+          emitir_recibo: string | null
+          pacientes_aguardando: boolean
+          pesquisa_satisfacao: boolean
+          assinatura_base64: string | null
+          logo_base64: string | null
+          updated_at: string
+        }
+        Insert: Partial<Omit<Database['public']['Tables']['configuracoes_clinica']['Row'], 'id'>>
+        Update: Partial<Database['public']['Tables']['configuracoes_clinica']['Insert']>
+      }
+      anamnese_tokens: {
+        Row: {
+          id: string
+          token: string
+          paciente_id: string
+          expires_at: string
+          used_at: string | null
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['anamnese_tokens']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['anamnese_tokens']['Insert']>
       }
     }
     Views: {

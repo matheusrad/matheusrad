@@ -540,7 +540,7 @@ export default function DocumentoPrintPage() {
   async function salvarAssinatura(b64: string | null) {
     setAssinatura(b64)
     if (clinica) {
-      await supabase.from('configuracoes_clinica').update({ assinatura_base64: b64 }).eq('id', (clinica as any).id)
+      await (supabase.from('configuracoes_clinica') as any).update({ assinatura_base64: b64 }).eq('id', (clinica as any).id)
     }
   }
 
