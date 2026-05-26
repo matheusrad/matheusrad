@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Save, User, Building, ChevronRight, Plus, Pencil, Trash2, X, FileText, MessageSquare, CreditCard, Stethoscope, MoreVertical } from 'lucide-react'
+import { Save, User, Building, ChevronRight, Plus, Pencil, Trash2, X, FileText, MessageSquare, CreditCard, Stethoscope, MoreVertical, Calendar, CheckCircle2 } from 'lucide-react'
 import clsx from 'clsx'
 import { supabase } from '@/lib/supabase'
 
@@ -574,8 +574,65 @@ function ClinicaSecao({ registerSalvar }: { registerSalvar?: (fn: () => Promise<
         </div>
       </div>
 
+      {/* Google Calendar */}
+      <div className="border border-gray-100 rounded-2xl p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Calendar size={16} className="text-blue-500" />
+          <p className="font-medium text-gray-800">Google Calendar</p>
+        </div>
+        <p className="text-xs text-gray-500 mb-4">
+          Consultas criadas na agenda são sincronizadas automaticamente com o Google Calendar da clínica.
+        </p>
+
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-800 space-y-1.5 mb-4">
+          <p className="font-semibold">Como configurar:</p>
+          <ol className="list-decimal list-inside space-y-1 text-blue-700">
+            <li>Acesse <strong>console.cloud.google.com</strong> → crie um projeto</li>
+            <li>Ative a <strong>Google Calendar API</strong></li>
+            <li>Crie uma <strong>Conta de Serviço</strong> e baixe a chave JSON</li>
+            <li>Compartilhe seu Google Calendar com o e-mail da conta de serviço</li>
+            <li>Adicione as 3 variáveis abaixo no arquivo <code className="bg-blue-100 px-1 rounded">.env.local</code></li>
+          </ol>
+        </div>
+
+        <div className="space-y-3 font-mono text-xs bg-gray-50 border border-gray-100 rounded-xl p-4">
+          <p className="text-gray-500"># .env.local</p>
+          <p className="text-gray-700">GOOGLE_SERVICE_ACCOUNT_EMAIL=<span className="text-blue-600">sua-conta@projeto.iam.gserviceaccount.com</span></p>
+          <p className="text-gray-700">GOOGLE_SERVICE_ACCOUNT_KEY=<span className="text-blue-600">{"-----BEGIN PRIVATE KEY-----\\n..."}</span></p>
+          <p className="text-gray-700">GOOGLE_CALENDAR_ID=<span className="text-blue-600">seu-calendario@group.calendar.google.com</span></p>
+        </div>
+
+        <GoogleCalendarStatus />
+      </div>
+
       {ok   && <p className="text-sm text-green-600 font-medium text-right">✓ Salvo</p>}
       {erro && <p className="text-sm text-red-600 text-right">{erro}</p>}
+    </div>
+  )
+}
+
+function GoogleCalendarStatus() {
+  const [status, setStatus] = useState<'loading' | 'ok' | 'off'>('loading')
+
+  useEffect(() => {
+    fetch('/api/calendar')
+      .then(r => r.json())
+      .then(d => setStatus(d.configurado ? 'ok' : 'off'))
+      .catch(() => setStatus('off'))
+  }, [])
+
+  if (status === 'loading') return null
+
+  return (
+    <div className={`mt-3 flex items-center gap-2 text-xs font-medium rounded-lg px-3 py-2 ${
+      status === 'ok'
+        ? 'bg-green-50 text-green-700 border border-green-100'
+        : 'bg-amber-50 text-amber-700 border border-amber-100'
+    }`}>
+      {status === 'ok'
+        ? <><CheckCircle2 size={13} /> Integração ativa — eventos serão sincronizados</>
+        : <><Calendar size={13} /> Não configurado — adicione as variáveis de ambiente</>
+      }
     </div>
   )
 }

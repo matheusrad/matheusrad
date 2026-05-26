@@ -6,6 +6,7 @@ import {
   AlertCircle, FileText, Pencil, Users, Send,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { gcalCriar, gcalAtualizar, gcalCancelar } from '@/lib/calendarClient'
 import type { Consulta } from '@/types/database'
 import {
   format, addDays, startOfWeek, isSameDay, parseISO,
@@ -162,6 +163,25 @@ function ConsultaPopup({
     await supabase.from('consultas').update({ status: s }).eq('id', consulta.id)
     setStatusLocal(s as Consulta['status'])
     onStatusChange(consulta.id, s)
+
+    // Sincroniza Google Calendar
+    if (consulta.evento_google_id) {
+      const ini = parseISO(consulta.data_consulta)
+      const fim = consulta.data_fim_consulta ? parseISO(consulta.data_fim_consulta) : addHours(ini, 1)
+      if (s === 'Cancelado' || s === 'Faltou') {
+        gcalCancelar(consulta.evento_google_id)
+      } else {
+        gcalAtualizar(consulta.evento_google_id, {
+          paciente_nome: consulta.paciente_nome,
+          procedimento:  consulta.procedimento,
+          data_consulta: format(ini, 'yyyy-MM-dd'),
+          hora_inicio:   format(ini, 'HH:mm'),
+          hora_fim:      format(fim, 'HH:mm'),
+          status:        s,
+        })
+      }
+    }
+
     setSaving(false)
     setStatusOpen(false)
   }
@@ -335,9 +355,10 @@ function ConsultaModal({
     try {
       const dataIni = `${data}T${horaIni}:00`
       const dataFim = `${data}T${horaFim}:00`
-      const payload = {
+      const nomePaciente = pacSel?.nome ?? initial?.paciente_nome ?? pacSearch
+      const payload: Record<string, unknown> = {
         paciente_id:       pacSel?.id    ?? initial?.paciente_id    ?? null,
-        paciente_nome:     pacSel?.nome  ?? initial?.paciente_nome  ?? pacSearch,
+        paciente_nome:     nomePaciente,
         paciente_telefone: pacSel?.telefone ?? initial?.paciente_telefone ?? null,
         data_consulta:     dataIni,
         data_fim_consulta: dataFim,
@@ -346,13 +367,38 @@ function ConsultaModal({
         status,
         observacoes:       obs || null,
       }
+
+      const gcalPayload = {
+        paciente_nome: nomePaciente,
+        procedimento:  proc || null,
+        data_consulta: data,
+        hora_inicio:   horaIni,
+        hora_fim:      horaFim,
+        status,
+      }
+
       if (isEdit) {
         const { error: e } = await supabase.from('consultas').update(payload).eq('id', initial!.id)
         if (e) throw e
+        // Atualiza evento existente ou cria se não existia
+        if (initial!.evento_google_id) {
+          gcalAtualizar(initial!.evento_google_id, gcalPayload)
+        } else {
+          gcalCriar(gcalPayload).then(eventoId => {
+            if (eventoId) supabase.from('consultas').update({ evento_google_id: eventoId }).eq('id', initial!.id)
+          })
+        }
       } else {
-        const { error: e } = await supabase.from('consultas').insert(payload)
+        const { data: inserted, error: e } = await supabase.from('consultas').insert(payload).select().single()
         if (e) throw e
+        // Cria evento e salva ID
+        gcalCriar(gcalPayload).then(eventoId => {
+          if (eventoId && inserted) {
+            supabase.from('consultas').update({ evento_google_id: eventoId }).eq('id', (inserted as any).id)
+          }
+        })
       }
+
       onSaved()
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erro ao salvar.')
