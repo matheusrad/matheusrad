@@ -11,11 +11,9 @@ export interface OdontogramaProps {
   tratamentos?: Record<number, ToothTratamento>
   onToothClick?: (toothNumber: number) => void
   selectedTooth?: number | null
-  /** 'overview' = só verde/laranja, sem seleção visual. 'edit' = seleção normal */
   mode?: 'overview' | 'edit'
 }
 
-// ── Tipos por posição ─────────────────────────────────────────
 function getToothType(n: number): 'molar' | 'premolar' | 'canine' | 'incisor' {
   const pos = n % 10
   if (pos >= 6 || pos === 0) return 'molar'
@@ -24,39 +22,100 @@ function getToothType(n: number): 'molar' | 'premolar' | 'canine' | 'incisor' {
   return 'incisor'
 }
 
-// ── Paths anatômicos (viewBox 0 0 40 90) ─────────────────────
-// Arcada SUPERIOR: coroa em cima (y pequeno), raízes embaixo
-const CROWN_U: Record<string, string> = {
-  incisor:  'M 11,43 L 10,11 Q 10,3 20,3 Q 30,3 30,11 L 29,43 Z',
-  canine:   'M 10,43 L 9,17 L 20,3 L 31,17 L 30,43 Z',
-  premolar: 'M 9,43 C 8,31 9,19 11,12 Q 14,4 17,4 Q 20,1 23,4 Q 26,4 29,12 C 31,19 32,31 31,43 Z',
-  molar:    'M 4,43 C 4,30 5,16 8,9 Q 12,2 17,2 Q 20,0 23,2 Q 28,2 32,9 C 35,16 36,30 36,43 Z',
-}
-const ROOTS_U: Record<string, string[]> = {
-  incisor:  ['M 13,43 L 12,77 Q 20,84 28,77 L 27,43 Z'],
-  canine:   ['M 13,43 L 11,82 Q 20,88 29,82 L 27,43 Z'],
-  premolar: ['M 13,43 L 11,77 Q 20,84 29,77 L 27,43 Z'],
-  molar:    ['M 5,43 L 3,72 Q 11,80 16,75 L 18,43 Z', 'M 22,43 L 23,73 Q 29,82 35,77 L 36,43 Z'],
+// Tamanhos de exibição por tipo
+const SIZE = {
+  molar:    { w: 34, h: 60 },
+  premolar: { w: 26, h: 56 },
+  canine:   { w: 22, h: 62 },
+  incisor:  { w: 20, h: 54 },
 }
 
-// Arcada INFERIOR: raízes em cima (y pequeno), coroa embaixo
-const CROWN_L: Record<string, string> = {
-  incisor:  'M 11,47 L 10,79 Q 10,87 20,87 Q 30,87 30,79 L 29,47 Z',
-  canine:   'M 10,47 L 9,73 L 20,87 L 31,73 L 30,47 Z',
-  premolar: 'M 9,47 C 8,59 9,71 11,78 Q 14,86 17,86 Q 20,89 23,86 Q 26,86 29,78 C 31,71 32,59 31,47 Z',
-  molar:    'M 4,47 C 4,60 5,74 8,81 Q 12,88 17,88 Q 20,90 23,88 Q 28,88 32,81 C 35,74 36,60 36,47 Z',
+// ── Arcada SUPERIOR — coroa em cima, raízes embaixo ───────────
+// viewBox "0 0 50 90" para todos; tamanho de exibição varia por tipo
+
+const UPPER_PATHS: Record<string, { crown: string; roots: string[] }> = {
+  molar: {
+    crown: `M 2,44
+      C 1,30 2,16 7,9
+      Q 12,2 19,1
+      Q 25,0 31,1
+      Q 38,2 43,9
+      C 48,16 49,30 48,44 Z`,
+    roots: [
+      // raiz mesial (esquerda)
+      `M 4,44 L 2,72 Q 7,84 17,80 L 20,44 Z`,
+      // raiz distal (direita)
+      `M 30,44 L 28,78 Q 36,88 46,82 L 48,44 Z`,
+    ],
+  },
+  premolar: {
+    crown: `M 5,44
+      C 4,30 5,17 9,10
+      Q 13,3 19,2
+      Q 25,0 31,2
+      Q 37,3 41,10
+      C 45,17 46,30 45,44 Z`,
+    roots: [
+      `M 11,44 L 9,78 Q 25,88 41,78 L 39,44 Z`,
+    ],
+  },
+  canine: {
+    crown: `M 7,44 L 5,18 L 25,2 L 45,18 L 43,44 Z`,
+    roots: [
+      `M 12,44 L 10,82 Q 25,90 40,82 L 38,44 Z`,
+    ],
+  },
+  incisor: {
+    crown: `M 6,44 L 5,12 Q 6,2 25,2 Q 44,2 45,12 L 44,44 Z`,
+    roots: [
+      `M 12,44 L 10,78 Q 25,86 40,78 L 38,44 Z`,
+    ],
+  },
 }
-const ROOTS_L: Record<string, string[]> = {
-  incisor:  ['M 13,47 L 12,13 Q 20,6 28,13 L 27,47 Z'],
-  canine:   ['M 13,47 L 11,8 Q 20,2 29,8 L 27,47 Z'],
-  premolar: ['M 13,47 L 11,13 Q 20,6 29,13 L 27,47 Z'],
-  molar:    ['M 5,47 L 3,18 Q 11,10 16,15 L 18,47 Z', 'M 22,47 L 23,17 Q 29,8 35,13 L 36,47 Z'],
+
+// ── Arcada INFERIOR — raízes em cima, coroa embaixo ───────────
+const LOWER_PATHS: Record<string, { crown: string; roots: string[] }> = {
+  molar: {
+    crown: `M 2,46
+      C 1,60 2,74 7,81
+      Q 12,88 19,89
+      Q 25,90 31,89
+      Q 38,88 43,81
+      C 48,74 49,60 48,46 Z`,
+    roots: [
+      `M 4,46 L 2,18 Q 7,6 17,10 L 20,46 Z`,
+      `M 30,46 L 28,12 Q 36,2 46,8 L 48,46 Z`,
+    ],
+  },
+  premolar: {
+    crown: `M 5,46
+      C 4,60 5,73 9,80
+      Q 13,87 19,88
+      Q 25,90 31,88
+      Q 37,87 41,80
+      C 45,73 46,60 45,46 Z`,
+    roots: [
+      `M 11,46 L 9,12 Q 25,2 41,12 L 39,46 Z`,
+    ],
+  },
+  canine: {
+    crown: `M 7,46 L 43,46 L 25,88 Z`,
+    roots: [
+      `M 12,46 L 10,8 Q 25,0 40,8 L 38,46 Z`,
+    ],
+  },
+  incisor: {
+    crown: `M 6,46 L 44,46 L 45,78 Q 44,88 25,88 Q 6,88 5,78 Z`,
+    roots: [
+      `M 12,46 L 10,12 Q 25,4 40,12 L 38,46 Z`,
+    ],
+  },
 }
 
 const UPPER_ROW = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28]
 const LOWER_ROW = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
 
-// ── SVG de um dente ───────────────────────────────────────────
+// ── SVG do dente ──────────────────────────────────────────────
 function ToothSVG({ number, isUpper, tratamento, selected, mode }: {
   number: number
   isUpper: boolean
@@ -65,89 +124,86 @@ function ToothSVG({ number, isUpper, tratamento, selected, mode }: {
   mode: 'overview' | 'edit'
 }) {
   const type   = getToothType(number)
-  const crown  = isUpper ? CROWN_U[type] : CROWN_L[type]
-  const roots  = isUpper ? ROOTS_U[type] : ROOTS_L[type]
+  const paths  = isUpper ? UPPER_PATHS[type] : LOWER_PATHS[type]
+  const { w, h } = SIZE[type]
+  const hasTrat   = tratamento && tratamento.status !== 'Cancelado'
+  const isGreen   = hasTrat && tratamento!.status === 'Finalizado'
+  const isOrange  = hasTrat && tratamento!.status === 'Em aberto'
 
-  const hasTrat = tratamento && tratamento.status !== 'Cancelado'
+  const crownFill   = selected && mode === 'edit' ? '#bfdbfe'
+    : isGreen   ? '#86efac'
+    : isOrange  ? '#fdba74'
+    : '#f8fafc'
 
-  // Cores
-  const crownFill = mode === 'overview'
-    ? (hasTrat
-        ? (tratamento!.status === 'Finalizado' ? '#bbf7d0' : '#fed7aa')  // verde / laranja claro
-        : '#f8fafc')
-    : (selected ? '#dbeafe' : hasTrat
-        ? (tratamento!.status === 'Finalizado' ? '#bbf7d0' : '#fed7aa')
-        : '#f8fafc')
-
-  const crownStroke = mode === 'overview'
-    ? (hasTrat
-        ? (tratamento!.status === 'Finalizado' ? '#16a34a' : '#ea580c')
-        : '#9ca3af')
-    : (selected ? '#3b82f6' : hasTrat
-        ? (tratamento!.status === 'Finalizado' ? '#16a34a' : '#ea580c')
-        : '#9ca3af')
+  const crownStroke = selected && mode === 'edit' ? '#3b82f6'
+    : isGreen   ? '#16a34a'
+    : isOrange  ? '#ea580c'
+    : '#94a3b8'
 
   const rootFill   = '#f1f5f9'
   const rootStroke = '#cbd5e1'
 
   return (
-    <svg viewBox="0 0 40 90" width={22} height={48} style={{ overflow: 'visible' }}>
-      {/* Raízes */}
-      {roots.map((d, i) => (
-        <path key={i} d={d} fill={rootFill} stroke={rootStroke} strokeWidth={1.2} strokeLinejoin="round" />
+    <svg viewBox="0 0 50 90" width={w} height={h} style={{ overflow: 'visible' }}>
+      {paths.roots.map((d, i) => (
+        <path key={i} d={d}
+          fill={rootFill}
+          stroke={rootStroke}
+          strokeWidth={1.4}
+          strokeLinejoin="round"
+        />
       ))}
-      {/* Coroa */}
-      <path d={crown} fill={crownFill} stroke={crownStroke} strokeWidth={1.5} strokeLinejoin="round" />
+      <path
+        d={paths.crown}
+        fill={crownFill}
+        stroke={crownStroke}
+        strokeWidth={1.6}
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
 
-// ── Odontograma principal ─────────────────────────────────────
+// ── Odontograma ───────────────────────────────────────────────
 export function Odontograma({ tratamentos = {}, onToothClick, selectedTooth, mode = 'edit' }: OdontogramaProps) {
   const [localSelected, setLocalSelected] = useState<number | null>(null)
   const active = mode === 'edit' ? (selectedTooth !== undefined ? selectedTooth : localSelected) : null
   const rootRef = useRef<HTMLDivElement>(null)
 
-  // ── Animação entrada ──────────────────────────────────────
   useLayoutEffect(() => {
     const root = rootRef.current
     if (!root) return
-    const wrappers = Array.from(root.querySelectorAll<HTMLElement>('[data-tooth]'))
-    if (!wrappers.length) return
-
-    gsap.set(wrappers, { scale: 0, opacity: 0, transformOrigin: 'center center' })
-    gsap.to(wrappers, {
+    const els = Array.from(root.querySelectorAll<HTMLElement>('[data-tooth]'))
+    if (!els.length) return
+    gsap.set(els, { scale: 0, opacity: 0, transformOrigin: 'center center' })
+    gsap.to(els, {
       scale: 1, opacity: 1,
-      duration: 0.42,
-      ease: 'back.out(1.9)',
-      stagger: { each: 0.032, from: 'center' },
-      delay: 0.1,
+      duration: 0.4, ease: 'back.out(2)',
+      stagger: { each: 0.03, from: 'center' },
+      delay: 0.05,
     })
-    return () => gsap.killTweensOf(wrappers)
+    return () => gsap.killTweensOf(els)
   }, [])
 
-  // ── Clique ────────────────────────────────────────────────
   const handleClick = useCallback((n: number) => {
     if (mode === 'edit') setLocalSelected(prev => prev === n ? null : n)
     onToothClick?.(n)
-
     const el = rootRef.current?.querySelector<HTMLElement>(`[data-tooth="${n}"]`)
     if (!el) return
     gsap.killTweensOf(el)
     gsap.timeline()
-      .to(el, { scale: 0.72, duration: 0.09, ease: 'power2.in',   transformOrigin: 'center center' })
-      .to(el, { scale: 1.28, duration: 0.2,  ease: 'back.out(3)', transformOrigin: 'center center' })
+      .to(el, { scale: 0.75, duration: 0.08, ease: 'power2.in',   transformOrigin: 'center center' })
+      .to(el, { scale: 1.25, duration: 0.18, ease: 'back.out(3)', transformOrigin: 'center center' })
       .to(el, { scale: 1,    duration: 0.14, ease: 'power1.inOut' })
   }, [mode, onToothClick])
 
-  // ── Hover ─────────────────────────────────────────────────
   const hoverIn  = useCallback((n: number) => {
     const el = rootRef.current?.querySelector<HTMLElement>(`[data-tooth="${n}"]`)
-    if (el) gsap.to(el, { scale: 1.18, duration: 0.16, ease: 'power2.out', transformOrigin: 'center center', overwrite: 'auto' })
+    if (el) gsap.to(el, { scale: 1.18, duration: 0.15, ease: 'power2.out', transformOrigin: 'center center', overwrite: 'auto' })
   }, [])
   const hoverOut = useCallback((n: number) => {
     const el = rootRef.current?.querySelector<HTMLElement>(`[data-tooth="${n}"]`)
-    if (el) gsap.to(el, { scale: 1, duration: 0.18, ease: 'power2.inOut', transformOrigin: 'center center', overwrite: 'auto' })
+    if (el) gsap.to(el, { scale: 1, duration: 0.15, ease: 'power2.inOut', transformOrigin: 'center center', overwrite: 'auto' })
   }, [])
 
   const tooth = (n: number, isUpper: boolean, addSep: boolean) => (
@@ -166,25 +222,27 @@ export function Odontograma({ tratamentos = {}, onToothClick, selectedTooth, mod
         <ToothSVG number={n} isUpper={isUpper} tratamento={tratamentos[n]} selected={active === n} mode={mode} />
         {!isUpper && <span className="text-[8px] text-gray-400 mt-0.5 font-medium leading-none">{n}</span>}
       </button>
-      {addSep && <div className="w-px h-8 bg-gray-200 self-center mx-1 shrink-0" />}
+      {addSep && <div className="w-px h-10 bg-gray-200 self-center mx-1 shrink-0" />}
     </div>
   )
 
   return (
     <div ref={rootRef} className="select-none py-1">
-      {/* Arcada superior */}
-      <div className="flex items-end justify-center gap-0.5">
-        {UPPER_ROW.map((n, i) => tooth(n, true, i === 7))}
-      </div>
+      <div className="overflow-x-auto pb-1">
+        {/* Arcada superior */}
+        <div className="flex items-end justify-center gap-0.5 min-w-max mx-auto">
+          {UPPER_ROW.map((n, i) => tooth(n, true, i === 7))}
+        </div>
 
-      {/* Linha central */}
-      <div className="flex justify-center my-1">
-        <div className="w-[calc(100%-28px)] h-px border-t border-dashed border-gray-200" />
-      </div>
+        {/* Linha central */}
+        <div className="flex justify-center my-1.5">
+          <div className="w-full h-px border-t border-dashed border-gray-200" />
+        </div>
 
-      {/* Arcada inferior */}
-      <div className="flex items-start justify-center gap-0.5">
-        {LOWER_ROW.map((n, i) => tooth(n, false, i === 7))}
+        {/* Arcada inferior */}
+        <div className="flex items-start justify-center gap-0.5 min-w-max mx-auto">
+          {LOWER_ROW.map((n, i) => tooth(n, false, i === 7))}
+        </div>
       </div>
 
       {/* Legenda */}
