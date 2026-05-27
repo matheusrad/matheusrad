@@ -62,20 +62,32 @@ export function PacienteDetalhePage({ id }: { id: string }) {
   const [showBannerEvolucao, setShowBannerEvolucao] = useState(true)
   const evolucaoRef = useRef<HTMLDivElement>(null)
 
-  // Mock tratamentos per tooth (in production comes from tratamentos table)
-  const [tratamentos] = useState<Record<number, ToothTratamento>>({})
+  const [tratamentos, setTratamentos] = useState<Record<number, ToothTratamento>>({})
 
   useEffect(() => {
     async function load() {
       setLoading(true)
-      const [{ data: p }, { data: c }, { data: d }] = await Promise.all([
+      const [{ data: p }, { data: c }, { data: d }, { data: t }] = await Promise.all([
         supabase.from('pacientes').select('*').eq('id', id).single(),
         supabase.from('consultas').select('*').eq('paciente_id', id).order('data_consulta', { ascending: false }),
         supabase.from('documentos').select('*').eq('paciente_id', id).order('created_at', { ascending: false }),
+        supabase.from('tratamentos').select('numero_dente,procedimento,status').eq('paciente_id', id),
       ])
       setPaciente(p)
       setConsultas(c || [])
       setDocumentos(d || [])
+
+      // Monta mapa dente → tratamento (pega o mais relevante por dente)
+      const map: Record<number, ToothTratamento> = {}
+      for (const tr of (t || []) as any[]) {
+        if (!tr.numero_dente || tr.status === 'Cancelado') continue
+        // Prioridade: Em aberto > Finalizado (mostra sempre o pendente se existir)
+        if (!map[tr.numero_dente] || tr.status === 'Em aberto') {
+          map[tr.numero_dente] = { procedimento: tr.procedimento, status: tr.status }
+        }
+      }
+      setTratamentos(map)
+
       setLoading(false)
     }
     load()
@@ -263,7 +275,16 @@ export function PacienteDetalhePage({ id }: { id: string }) {
                       <button className="px-2.5 py-1 text-xs text-gray-500 hover:bg-gray-50 rounded-lg font-medium">Decíduos</button>
                     </div>
                   </div>
-                  <Odontograma tratamentos={tratamentos} />
+                  <Odontograma
+                    tratamentos={tratamentos}
+                    mode="overview"
+                    onToothClick={() => setTab('tratamentos')}
+                  />
+                  {Object.keys(tratamentos).length > 0 && (
+                    <p className="text-center text-xs text-gray-400 mt-1">
+                      Clique em um dente para ver os tratamentos
+                    </p>
+                  )}
                 </div>
 
                 {/* Historical consultations */}
