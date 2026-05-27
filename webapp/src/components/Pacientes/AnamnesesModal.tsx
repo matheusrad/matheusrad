@@ -1,11 +1,10 @@
 'use client'
 import { useState } from 'react'
-import { X, Clipboard } from 'lucide-react'
+import { X, Clipboard, ChevronRight, ChevronLeft, Heart, Stethoscope, Smile, Activity, User } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 // ── Tipos ──────────────────────────────────────────────────────
 export interface SaudeBucal {
-  // Sim/Não (Q01-Q15, Q19, Q22)
   respira_bem_nariz: string; respira_obs: string
   dificuldade_boca: string; dificuldade_boca_obs: string
   dor_mandibula: string; dor_mandibula_obs: string
@@ -23,12 +22,16 @@ export interface SaudeBucal {
   instrucoes_higiene: string
   antisseptico: string; antisseptico_qual: string
   anestesia_local: string; anestesia_obs: string
-  // Texto/quantitativo (Q16-Q18, Q20-Q21)
   vezes_escovacao_dia: string
   tempo_escovacao: string
   vezes_fio_dental: string
   freq_dentista: string
   ultimo_tratamento: string
+  // Campos novos (armazenados aqui para evitar migração)
+  historia_doenca_atual: string
+  medico_responsavel: string
+  historia_familiar: string
+  dieta_obs: string
 }
 
 export interface AnamnesesFormData {
@@ -40,7 +43,7 @@ export interface AnamnesesFormData {
   intensidade_dor: number
   tempo_problema: string
   ultima_consulta_dentista: string
-  // Questionário S/N (PDF perguntas 01–25)
+  // História Médica Pregressa
   em_tratamento_medico: boolean
   detalhe_tratamento_medico: string
   usa_medicamento: boolean
@@ -52,6 +55,7 @@ export interface AnamnesesFormData {
   tem_alergia: boolean
   qual_alergia: string
   sensivel_metais_latex: boolean
+  // Doenças e condições
   diabetes: boolean
   tem_anemia: boolean
   tem_asma: boolean
@@ -78,9 +82,9 @@ export interface AnamnesesFormData {
   doenca_hepatica: boolean
   osteoporose: boolean
   outras_informacoes_saude: string
-  // Saúde bucal (PDF segunda seção)
+  // Saúde bucal
   saude_bucal: SaudeBucal
-  // Hábitos adicionais
+  // Hábitos
   consome_alcool: boolean
   bruxismo: boolean
   sangramento_pos_procedimento: boolean
@@ -103,6 +107,7 @@ const EMPTY_SAUDE_BUCAL: SaudeBucal = {
   anestesia_local: '', anestesia_obs: '',
   vezes_escovacao_dia: '', tempo_escovacao: '', vezes_fio_dental: '',
   freq_dentista: '', ultimo_tratamento: '',
+  historia_doenca_atual: '', medico_responsavel: '', historia_familiar: '', dieta_obs: '',
 }
 
 const EMPTY: AnamnesesFormData = {
@@ -129,91 +134,84 @@ const EMPTY: AnamnesesFormData = {
   medo_tratamento: false, observacoes: '',
 }
 
-// ── Componentes de formulário ─────────────────────────────────
-function SectionTitle({ num, children }: { num?: string; children: React.ReactNode }) {
+// ── Componentes base ──────────────────────────────────────────
+function SectionTitle({ children, subtitle }: { children: React.ReactNode; subtitle?: string }) {
   return (
-    <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 mt-6 first:mt-0 flex items-center gap-2">
-      {num && <span className="bg-blue-50 text-blue-600 rounded px-1.5 py-0.5 text-xs font-bold">{num}</span>}
-      {children}
-    </h3>
-  )
-}
-
-function CheckRow({ num, label, checked, onChange, children }: {
-  num?: string; label: string; checked: boolean; onChange: (v: boolean) => void; children?: React.ReactNode
-}) {
-  return (
-    <div className="space-y-2">
-      <label className="flex items-start gap-2 cursor-pointer select-none">
-        <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)}
-          className="w-4 h-4 mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0" />
-        <span className="text-sm text-gray-700">
-          {num && <span className="text-gray-400 font-mono mr-1">{num}</span>}
-          {label}
-        </span>
-      </label>
-      {checked && children && <div className="pl-6">{children}</div>}
+    <div className="mb-4">
+      <h3 className="text-sm font-semibold text-gray-800">{children}</h3>
+      {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
     </div>
   )
 }
 
-function TextInput({ label, value, onChange, placeholder }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <label className="block text-xs font-medium text-gray-600 mb-1">{children}</label>
+}
+
+function TextInput({ label, value, onChange, placeholder, rows }: {
+  label?: string; value: string; onChange: (v: string) => void; placeholder?: string; rows?: number
 }) {
   return (
     <div>
-      <label className="label">{label}</label>
-      <input value={value} onChange={e => onChange(e.target.value)} className="input" placeholder={placeholder} />
-    </div>
-  )
-}
-
-function BucalYesNo({ num, label, value, onChange, showDetailOn = 'sim', detailPlaceholder, detailValue, onDetailChange }: {
-  num: string; label: string; value: string; onChange: (v: string) => void
-  showDetailOn?: 'sim' | 'nao'
-  detailPlaceholder?: string; detailValue?: string; onDetailChange?: (v: string) => void
-}) {
-  return (
-    <div className="space-y-1.5">
-      <p className="text-xs text-gray-600">
-        <span className="text-gray-400 font-mono mr-1">{num}</span>{label}
-      </p>
-      <div className="flex gap-2">
-        {(['sim', 'nao'] as const).map(opt => (
-          <button key={opt} type="button" onClick={() => onChange(opt)}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border-2 transition-all ${
-              value === opt
-                ? opt === 'sim' ? 'border-green-500 bg-green-50 text-green-700' : 'border-red-300 bg-red-50 text-red-600'
-                : 'border-gray-200 text-gray-400 hover:border-gray-300'
-            }`}>
-            {opt === 'sim' ? 'Sim' : 'Não'}
-          </button>
-        ))}
-      </div>
-      {detailPlaceholder && value === showDetailOn && (
-        <input value={detailValue ?? ''} onChange={e => onDetailChange?.(e.target.value)}
-          placeholder={detailPlaceholder}
-          className="input text-xs py-1.5" />
+      {label && <FieldLabel>{label}</FieldLabel>}
+      {rows ? (
+        <textarea value={value} onChange={e => onChange(e.target.value)}
+          rows={rows} className="input resize-none w-full text-sm" placeholder={placeholder} />
+      ) : (
+        <input value={value} onChange={e => onChange(e.target.value)}
+          className="input w-full text-sm" placeholder={placeholder} />
       )}
     </div>
   )
 }
 
-function BucalText({ num, label, value, onChange, placeholder }: {
-  num: string; label: string; value: string; onChange: (v: string) => void; placeholder?: string
+function YesNoRow({ label, checked, onChange, extra }: {
+  label: string; checked: boolean; onChange: (v: boolean) => void; extra?: React.ReactNode
 }) {
   return (
-    <div className="space-y-1.5">
-      <label className="text-xs text-gray-600">
-        <span className="text-gray-400 font-mono mr-1">{num}</span>{label}
-      </label>
-      <input value={value} onChange={e => onChange(e.target.value)}
-        className="input text-xs py-1.5" placeholder={placeholder ?? 'Resposta...'} />
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm text-gray-700 flex-1 leading-tight">{label}</span>
+        <div className="flex gap-1.5 shrink-0">
+          {([true, false] as const).map(opt => (
+            <button key={String(opt)} type="button" onClick={() => onChange(opt)}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                checked === opt
+                  ? opt ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-300 bg-gray-100 text-gray-600'
+                  : 'border-gray-200 text-gray-400 hover:border-gray-300'
+              }`}>
+              {opt ? 'Sim' : 'Não'}
+            </button>
+          ))}
+        </div>
+      </div>
+      {checked && extra && <div className="pl-0">{extra}</div>}
     </div>
   )
 }
 
-// ── Props ─────────────────────────────────────────────────────
+function ConditionChip({ label, checked, onChange }: {
+  label: string; checked: boolean; onChange: (v: boolean) => void
+}) {
+  return (
+    <button type="button" onClick={() => onChange(!checked)}
+      className={`px-3 py-2 rounded-xl text-xs font-medium border-2 transition-all text-left ${
+        checked ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'
+      }`}>
+      {label}
+    </button>
+  )
+}
+
+// ── Abas ──────────────────────────────────────────────────────
+const TABS = [
+  { id: 0, label: 'Queixa',   icon: Clipboard },
+  { id: 1, label: 'Hist. Médica', icon: Heart },
+  { id: 2, label: 'Doenças',  icon: Activity },
+  { id: 3, label: 'Odontológica', icon: Smile },
+  { id: 4, label: 'Hábitos',  icon: User },
+]
+
 interface Props {
   pacienteId: string
   pacienteNome: string
@@ -225,14 +223,14 @@ interface Props {
 export function AnamnesesModal({ pacienteId, pacienteNome, initial, onClose, onSaved }: Props) {
   const isEdit = !!initial
   const [form, setForm] = useState<AnamnesesFormData>(initial ?? { ...EMPTY, paciente_nome: pacienteNome })
+  const [tab, setTab]     = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
 
   function set<K extends keyof AnamnesesFormData>(key: K, value: AnamnesesFormData[K]) {
     setForm(prev => ({ ...prev, [key]: value }))
   }
-
-  function setBucal<K extends keyof SaudeBucal>(key: K, value: string) {
+  function setSB<K extends keyof SaudeBucal>(key: K, value: string) {
     setForm(prev => ({ ...prev, saude_bucal: { ...prev.saude_bucal, [key]: value } }))
   }
 
@@ -243,9 +241,9 @@ export function AnamnesesModal({ pacienteId, pacienteNome, initial, onClose, onS
       const payload = { ...form, paciente_id: pacienteId, paciente_nome: pacienteNome }
       let err
       if (isEdit) {
-        ;({ error: err } = await supabase.from('anamneses').update(payload).eq('id', initial.id))
+        ;({ error: err } = await (supabase.from('anamneses') as any).update(payload).eq('id', initial.id))
       } else {
-        ;({ error: err } = await supabase.from('anamneses').insert(payload))
+        ;({ error: err } = await (supabase.from('anamneses') as any).insert(payload))
       }
       if (err) throw err
       onSaved()
@@ -266,168 +264,328 @@ export function AnamnesesModal({ pacienteId, pacienteNome, initial, onClose, onS
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-2">
             <Clipboard size={18} className="text-blue-600" />
-            <h2 className="font-semibold text-gray-900">{isEdit ? 'Editar anamnese' : 'Nova anamnese'}</h2>
+            <div>
+              <h2 className="font-semibold text-gray-900 text-sm">{isEdit ? 'Editar anamnese' : 'Nova anamnese'}</h2>
+              <p className="text-xs text-gray-400">{pacienteNome}</p>
+            </div>
           </div>
           <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
             <X size={18} />
           </button>
         </div>
 
+        {/* Tabs */}
+        <div className="flex border-b border-gray-100 shrink-0 overflow-x-auto">
+          {TABS.map(t => {
+            const Icon = t.icon
+            return (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
+                  tab === t.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}>
+                <Icon size={13} />{t.label}
+              </button>
+            )
+          })}
+        </div>
+
         {/* Body */}
-        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-2">
+        <div className="overflow-y-auto flex-1 px-6 py-5">
 
-          {/* 1. Queixa principal */}
-          <SectionTitle>Queixa principal</SectionTitle>
-          <div className="space-y-3">
-            <div>
-              <label className="label">Motivo da consulta</label>
-              <textarea value={form.motivo_consulta} onChange={e => set('motivo_consulta', e.target.value)}
-                rows={2} className="input resize-none" placeholder="Descreva o motivo..." />
-            </div>
-            <CheckRow label="Tem dor no momento?" checked={form.tem_dor_atual} onChange={v => set('tem_dor_atual', v)}>
+          {/* ── Tab 0: Queixa Principal ─────────────────────── */}
+          {tab === 0 && (
+            <div className="space-y-5">
+              <SectionTitle subtitle="Motivo da consulta e história da doença atual">
+                Queixa Principal
+              </SectionTitle>
+
+              <TextInput label="Motivo da consulta" value={form.motivo_consulta}
+                onChange={v => set('motivo_consulta', v)} rows={2}
+                placeholder="Descreva o motivo em linguagem simples..." />
+
+              <TextInput label="História da doença atual (HDA)" value={sb.historia_doenca_atual}
+                onChange={v => setSB('historia_doenca_atual', v)} rows={3}
+                placeholder="Início, evolução, fatores de melhora/piora, tratamentos anteriores..." />
+
+              <YesNoRow label="Está com dor no momento?"
+                checked={form.tem_dor_atual} onChange={v => set('tem_dor_atual', v)}
+                extra={
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <TextInput label="Local da dor" value={form.local_dor} onChange={v => set('local_dor', v)} placeholder="Ex: molar inferior direito" />
+                    <div>
+                      <FieldLabel>Intensidade (0–10)</FieldLabel>
+                      <div className="flex items-center gap-2">
+                        <input type="range" min={0} max={10} value={form.intensidade_dor}
+                          onChange={e => set('intensidade_dor', Number(e.target.value))}
+                          className="flex-1 accent-blue-600" />
+                        <span className="text-sm font-bold text-blue-600 w-5 text-center">{form.intensidade_dor}</span>
+                      </div>
+                    </div>
+                  </div>
+                } />
+
               <div className="grid grid-cols-2 gap-3">
-                <TextInput label="Local da dor" value={form.local_dor} onChange={v => set('local_dor', v)} placeholder="Ex: molar inferior" />
-                <div>
-                  <label className="label">Intensidade (0–10)</label>
-                  <input type="number" min={0} max={10} value={form.intensidade_dor}
-                    onChange={e => set('intensidade_dor', Number(e.target.value))} className="input" />
-                </div>
+                <TextInput label="Há quanto tempo?" value={form.tempo_problema}
+                  onChange={v => set('tempo_problema', v)} placeholder="Ex: 2 semanas" />
+                <TextInput label="Última consulta ao dentista" value={form.ultima_consulta_dentista}
+                  onChange={v => set('ultima_consulta_dentista', v)} placeholder="Ex: há 6 meses" />
               </div>
-            </CheckRow>
-            <div className="grid grid-cols-2 gap-3">
-              <TextInput label="Há quanto tempo tem o problema?" value={form.tempo_problema} onChange={v => set('tempo_problema', v)} placeholder="Ex: 2 semanas" />
-              <TextInput label="Última consulta ao dentista" value={form.ultima_consulta_dentista} onChange={v => set('ultima_consulta_dentista', v)} placeholder="Ex: há 6 meses" />
             </div>
-          </div>
+          )}
 
-          {/* 2. Questionário de saúde (PDF Q01–Q25) */}
-          <SectionTitle num="Q">Questionário de saúde</SectionTitle>
-          <p className="text-xs text-gray-400 -mt-1 mb-3">Responda com Sim (marque) ou Não (deixe desmarcado). Em caso positivo, forneça detalhes.</p>
-          <div className="space-y-3">
-            <CheckRow num="01" label="Está ou esteve recentemente em tratamento médico?" checked={form.em_tratamento_medico} onChange={v => set('em_tratamento_medico', v)}>
-              <TextInput label="Qual tratamento?" value={form.detalhe_tratamento_medico} onChange={v => set('detalhe_tratamento_medico', v)} />
-            </CheckRow>
-            <CheckRow num="02" label="Está tomando algum remédio?" checked={form.usa_medicamento} onChange={v => set('usa_medicamento', v)}>
-              <TextInput label="Qual(is) remédio(s)?" value={form.qual_medicamento} onChange={v => set('qual_medicamento', v)} />
-            </CheckRow>
-            <CheckRow num="03" label="Está grávida?" checked={form.gestante} onChange={v => set('gestante', v)}>
-              <TextInput label="De quantos meses?" value={form.periodo_gestacao} onChange={v => set('periodo_gestacao', v)} />
-            </CheckRow>
-            <CheckRow num="05" label="Alguma vez teve que suspender o uso de algum remédio?" checked={form.suspendeu_remedio} onChange={v => set('suspendeu_remedio', v)}>
-              <TextInput label="Qual remédio e por quê?" value={form.detalhe_remedio_suspenso} onChange={v => set('detalhe_remedio_suspenso', v)} />
-            </CheckRow>
-            <CheckRow num="06" label="Tem alergia?" checked={form.tem_alergia} onChange={v => set('tem_alergia', v)}>
-              <TextInput label="Qual(is) alergia(s)?" value={form.qual_alergia} onChange={v => set('qual_alergia', v)} placeholder="Ex: penicilina, látex..." />
-            </CheckRow>
-            <CheckRow num="07" label="É sensível a metais ou ao látex?" checked={form.sensivel_metais_latex} onChange={v => set('sensivel_metais_latex', v)} />
+          {/* ── Tab 1: História Médica Pregressa ────────────── */}
+          {tab === 1 && (
+            <div className="space-y-4">
+              <SectionTitle subtitle="Tratamentos, medicamentos, alergias e histórico cirúrgico">
+                História Médica Pregressa
+              </SectionTitle>
 
-            <div className="grid grid-cols-2 gap-3 pt-1">
-              <CheckRow num="08" label="É diabético?" checked={form.diabetes} onChange={v => set('diabetes', v)} />
-              <CheckRow num="09" label="Tem anemia?" checked={form.tem_anemia} onChange={v => set('tem_anemia', v)} />
-              <CheckRow num="10" label="Tem asma?" checked={form.tem_asma} onChange={v => set('tem_asma', v)} />
-              <CheckRow num="11" label="É HIV positivo?" checked={form.hiv_imunossuprimido} onChange={v => set('hiv_imunossuprimido', v)} />
-              <CheckRow num="12" label="É sujeito a infecções?" checked={form.sujeito_infeccoes} onChange={v => set('sujeito_infeccoes', v)} />
-              <CheckRow num="13" label="Tem epilepsia ou ataques nervosos?" checked={form.tem_epilepsia} onChange={v => set('tem_epilepsia', v)} />
-              <CheckRow num="14" label="Já teve convulsões alguma vez?" checked={form.ja_teve_convulsoes} onChange={v => set('ja_teve_convulsoes', v)} />
-              <CheckRow num="15" label="Costuma desmaiar ou sentir tonturas?" checked={form.desmaios_tonturas} onChange={v => set('desmaios_tonturas', v)} />
+              <YesNoRow label="Está ou esteve em tratamento médico recentemente?"
+                checked={form.em_tratamento_medico} onChange={v => set('em_tratamento_medico', v)}
+                extra={<TextInput value={form.detalhe_tratamento_medico} onChange={v => set('detalhe_tratamento_medico', v)} placeholder="Qual tratamento / especialidade?" />} />
+
+              <TextInput label="Médico responsável (se houver)" value={sb.medico_responsavel}
+                onChange={v => setSB('medico_responsavel', v)} placeholder="Nome e especialidade do médico" />
+
+              <YesNoRow label="Toma algum medicamento?"
+                checked={form.usa_medicamento} onChange={v => set('usa_medicamento', v)}
+                extra={<TextInput value={form.qual_medicamento} onChange={v => set('qual_medicamento', v)} placeholder="Liste os medicamentos em uso..." />} />
+
+              <YesNoRow label="Tem alguma alergia?"
+                checked={form.tem_alergia} onChange={v => set('tem_alergia', v)}
+                extra={<TextInput value={form.qual_alergia} onChange={v => set('qual_alergia', v)} placeholder="Ex: penicilina, AAS, látex, dipirona..." />} />
+
+              <YesNoRow label="É sensível a metais ou ao látex?"
+                checked={form.sensivel_metais_latex} onChange={v => set('sensivel_metais_latex', v)} />
+
+              <YesNoRow label="Alguma vez teve que suspender um medicamento?"
+                checked={form.suspendeu_remedio} onChange={v => set('suspendeu_remedio', v)}
+                extra={<TextInput value={form.detalhe_remedio_suspenso} onChange={v => set('detalhe_remedio_suspenso', v)} placeholder="Qual e por quê?" />} />
+
+              <YesNoRow label="Já realizou alguma cirurgia / intervenção?"
+                checked={form.ja_fez_cirurgia} onChange={v => set('ja_fez_cirurgia', v)} />
+
+              <YesNoRow label="Quando se machuca, sangra muito ou cicatriza devagar?"
+                checked={form.disturbio_coagulacao} onChange={v => set('disturbio_coagulacao', v)} />
+
+              <YesNoRow label="Está grávida?"
+                checked={form.gestante} onChange={v => set('gestante', v)}
+                extra={<TextInput value={form.periodo_gestacao} onChange={v => set('periodo_gestacao', v)} placeholder="De quantos meses?" />} />
+
+              <TextInput label="Dieta e alimentação (observações)" value={sb.dieta_obs}
+                onChange={v => setSB('dieta_obs', v)} rows={2}
+                placeholder="Restrições alimentares, dieta especial, alergias alimentares..." />
+
+              <TextInput label="História familiar (doenças hereditárias relevantes)" value={sb.historia_familiar}
+                onChange={v => setSB('historia_familiar', v)} rows={2}
+                placeholder="Ex: diabetes familiar, hipertensão, câncer..." />
             </div>
+          )}
 
-            <div>
-              <label className="label"><span className="text-gray-400 font-mono mr-1">16</span> Pressão arterial</label>
-              <div className="flex gap-3">
-                {['normal', 'alta', 'baixa'].map(op => (
-                  <label key={op} className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" name="pressao" value={op} checked={form.pressao_arterial === op}
-                      onChange={() => set('pressao_arterial', op)}
-                      className="text-blue-600 focus:ring-blue-500" />
-                    <span className="text-sm text-gray-700 capitalize">{op}</span>
-                  </label>
+          {/* ── Tab 2: Doenças e Condições ──────────────────── */}
+          {tab === 2 && (
+            <div className="space-y-4">
+              <SectionTitle subtitle="Selecione todas que se aplicam">
+                Doenças e Condições Sistêmicas
+              </SectionTitle>
+
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  ['Hipertensão', 'hipertensao'],
+                  ['Diabetes', 'diabetes'],
+                  ['Problema cardíaco', 'problema_cardiaco'],
+                  ['Doença renal', 'doenca_renal'],
+                  ['Doença hepática (fígado)', 'doenca_hepatica'],
+                  ['Anemia', 'tem_anemia'],
+                  ['Asma', 'tem_asma'],
+                  ['Osteoporose', 'osteoporose'],
+                  ['HIV / imunossuprimido', 'hiv_imunossuprimido'],
+                  ['Epilepsia / ataques', 'tem_epilepsia'],
+                  ['Sujeito a infecções', 'sujeito_infeccoes'],
+                  ['Convulsões', 'ja_teve_convulsoes'],
+                  ['Desmaios / tonturas', 'desmaios_tonturas'],
+                  ['Marcapasso / válvula', 'usa_marcapasso'],
+                  ['Articulações artificiais', 'articulacoes_artificiais'],
+                  ['Formigamento / inchaço', 'formigamento_inchazo'],
+                ] as [string, keyof AnamnesesFormData][]).map(([label, key]) => (
+                  <ConditionChip key={key} label={label}
+                    checked={form[key] as boolean}
+                    onChange={v => set(key, v)} />
                 ))}
               </div>
+
+              <div>
+                <FieldLabel>Pressão arterial</FieldLabel>
+                <div className="flex gap-2">
+                  {['normal', 'alta', 'baixa', 'não sei'].map(op => (
+                    <button key={op} type="button" onClick={() => set('pressao_arterial', op)}
+                      className={`flex-1 py-2 rounded-xl text-xs font-semibold border-2 transition-all capitalize ${
+                        form.pressao_arterial === op ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-400'
+                      }`}>
+                      {op}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <YesNoRow label="Já teve alguma doença grave?"
+                checked={form.doenca_grave} onChange={v => set('doenca_grave', v)}
+                extra={<TextInput value={form.detalhe_doenca_grave} onChange={v => set('detalhe_doenca_grave', v)} placeholder="Qual?" />} />
+
+              <YesNoRow label="Tem outras doenças sistêmicas (cardíacas, gástricas, renais, hepáticas)?"
+                checked={form.tem_doenca_sistemica} onChange={v => set('tem_doenca_sistemica', v)}
+                extra={<TextInput value={form.qual_doenca} onChange={v => set('qual_doenca', v)} placeholder="Descreva as condições..." />} />
+
+              <TextInput label="Outras informações de saúde relevantes" value={form.outras_informacoes_saude}
+                onChange={v => set('outras_informacoes_saude', v)} rows={2}
+                placeholder="Qualquer informação adicional que o dentista deva saber..." />
             </div>
+          )}
 
-            <CheckRow num="17" label="Usa marcapasso ou válvula cardíaca artificial?" checked={form.usa_marcapasso} onChange={v => set('usa_marcapasso', v)} />
-            <CheckRow num="18" label="Tem articulações artificiais ou usa prótese?" checked={form.articulacoes_artificiais} onChange={v => set('articulacoes_artificiais', v)} />
-            <CheckRow num="19" label="Tem formigamento ou inchaço nas extremidades?" checked={form.formigamento_inchazo} onChange={v => set('formigamento_inchazo', v)} />
-            <CheckRow num="20" label="Quando se fere, sangra muito ou demora para cicatrizar?" checked={form.disturbio_coagulacao} onChange={v => set('disturbio_coagulacao', v)} />
-            <CheckRow num="21" label="Fuma ou consome qualquer variedade de tabaco?" checked={form.fuma} onChange={v => set('fuma', v)} />
-            <CheckRow num="22" label="Já foi operado?" checked={form.ja_fez_cirurgia} onChange={v => set('ja_fez_cirurgia', v)} />
-            <CheckRow num="23" label="Já teve alguma outra doença grave?" checked={form.doenca_grave} onChange={v => set('doenca_grave', v)}>
-              <TextInput label="Qual doença?" value={form.detalhe_doenca_grave} onChange={v => set('detalhe_doenca_grave', v)} />
-            </CheckRow>
-            <CheckRow num="24" label="Tem problemas cardíacos, gástricos, renais, hepáticos ou outros que mereçam cuidados?" checked={form.tem_doenca_sistemica} onChange={v => set('tem_doenca_sistemica', v)}>
-              <TextInput label="Quais condições?" value={form.qual_doenca} onChange={v => set('qual_doenca', v)} />
-            </CheckRow>
-            <div>
-              <label className="label"><span className="text-gray-400 font-mono mr-1">25</span> Há alguma outra informação importante sobre sua saúde?</label>
-              <textarea value={form.outras_informacoes_saude} onChange={e => set('outras_informacoes_saude', e.target.value)}
-                rows={2} className="input resize-none" />
+          {/* ── Tab 3: História Odontológica ─────────────────── */}
+          {tab === 3 && (
+            <div className="space-y-4">
+              <SectionTitle subtitle="Histórico de tratamentos e hábitos de higiene bucal">
+                História Odontológica Pregressa
+              </SectionTitle>
+
+              <div className="grid grid-cols-2 gap-3">
+                <TextInput label="Última visita ao dentista" value={form.ultima_consulta_dentista}
+                  onChange={v => set('ultima_consulta_dentista', v)} placeholder="Ex: há 6 meses" />
+                <TextInput label="Último tratamento realizado" value={sb.ultimo_tratamento}
+                  onChange={v => setSB('ultimo_tratamento', v)} placeholder="Ex: extração, limpeza" />
+              </div>
+
+              <YesNoRow label="Já tomou anestesia local?"
+                checked={sb.anestesia_local === 'sim'}
+                onChange={v => setSB('anestesia_local', v ? 'sim' : 'nao')}
+                extra={<TextInput value={sb.anestesia_obs} onChange={v => setSB('anestesia_obs', v)} placeholder="Correu bem? Alguma reação?" />} />
+
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Hábitos de higiene bucal</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <TextInput label="Escovações por dia" value={sb.vezes_escovacao_dia}
+                    onChange={v => setSB('vezes_escovacao_dia', v)} placeholder="Ex: 3x" />
+                  <TextInput label="Duração da escovação" value={sb.tempo_escovacao}
+                    onChange={v => setSB('tempo_escovacao', v)} placeholder="Ex: 2 min" />
+                  <TextInput label="Fio dental por dia" value={sb.vezes_fio_dental}
+                    onChange={v => setSB('vezes_fio_dental', v)} placeholder="Ex: 1x" />
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <YesNoRow label="Usa enxaguante/antisséptico?"
+                    checked={sb.antisseptico === 'sim'}
+                    onChange={v => setSB('antisseptico', v ? 'sim' : 'nao')}
+                    extra={<TextInput value={sb.antisseptico_qual} onChange={v => setSB('antisseptico_qual', v)} placeholder="Qual produto?" />} />
+                  <TextInput label="Frequência ao dentista" value={sb.freq_dentista}
+                    onChange={v => setSB('freq_dentista', v)} placeholder="Ex: a cada 6 meses" />
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Condições bucais</p>
+                <div className="space-y-3">
+                  <YesNoRow label="Gengiva inchada ou dolorida?"
+                    checked={sb.gengiva_inchada === 'sim'}
+                    onChange={v => setSB('gengiva_inchada', v ? 'sim' : 'nao')}
+                    extra={<TextInput value={sb.gengiva_inchada_obs} onChange={v => setSB('gengiva_inchada_obs', v)} placeholder="Região e frequência..." />} />
+                  <YesNoRow label="Gengiva sangra ao escovar?"
+                    checked={sb.gengiva_sangra === 'sim'}
+                    onChange={v => setSB('gengiva_sangra', v ? 'sim' : 'nao')} />
+                  <YesNoRow label="Dificuldade ou barulho ao abrir a boca?"
+                    checked={sb.dificuldade_boca === 'sim'}
+                    onChange={v => setSB('dificuldade_boca', v ? 'sim' : 'nao')}
+                    extra={<TextInput value={sb.dificuldade_boca_obs} onChange={v => setSB('dificuldade_boca_obs', v)} placeholder="Descreva..." />} />
+                  <YesNoRow label="Dor na articulação da mandíbula ou ouvido?"
+                    checked={sb.dor_mandibula === 'sim'}
+                    onChange={v => setSB('dor_mandibula', v ? 'sim' : 'nao')}
+                    extra={<TextInput value={sb.dor_mandibula_obs} onChange={v => setSB('dor_mandibula_obs', v)} placeholder="Onde e com que frequência?" />} />
+                  <YesNoRow label="Retenção de comida entre os dentes?"
+                    checked={sb.retencao_comida === 'sim'}
+                    onChange={v => setSB('retencao_comida', v ? 'sim' : 'nao')} />
+                  <YesNoRow label="Mastiga dos dois lados da boca?"
+                    checked={sb.mastiga_dois_lados === 'sim'}
+                    onChange={v => setSB('mastiga_dois_lados', v ? 'sim' : 'nao')} />
+                </div>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* 3. Condições específicas */}
-          <SectionTitle>Condições específicas</SectionTitle>
-          <div className="grid grid-cols-2 gap-2">
-            <CheckRow label="Hipertensão" checked={form.hipertensao} onChange={v => set('hipertensao', v)} />
-            <CheckRow label="Problema cardíaco" checked={form.problema_cardiaco} onChange={v => set('problema_cardiaco', v)} />
-            <CheckRow label="Doença renal" checked={form.doenca_renal} onChange={v => set('doenca_renal', v)} />
-            <CheckRow label="Doença hepática" checked={form.doenca_hepatica} onChange={v => set('doenca_hepatica', v)} />
-            <CheckRow label="Osteoporose" checked={form.osteoporose} onChange={v => set('osteoporose', v)} />
-            <CheckRow label="Consome álcool" checked={form.consome_alcool} onChange={v => set('consome_alcool', v)} />
-            <CheckRow label="Bruxismo (range dentes)" checked={form.bruxismo} onChange={v => set('bruxismo', v)} />
-            <CheckRow label="Medo de tratamento dental" checked={form.medo_tratamento} onChange={v => set('medo_tratamento', v)} />
-            <CheckRow label="Sangramento pós-procedimento" checked={form.sangramento_pos_procedimento} onChange={v => set('sangramento_pos_procedimento', v)} />
-          </div>
+          {/* ── Tab 4: Hábitos e Estilo de Vida ──────────────── */}
+          {tab === 4 && (
+            <div className="space-y-4">
+              <SectionTitle subtitle="Hábitos que influenciam a saúde bucal">
+                Hábitos e Estilo de Vida
+              </SectionTitle>
 
-          {/* 4. Saúde bucal (PDF segunda seção) */}
-          <SectionTitle num="B">Saúde bucal e hábitos</SectionTitle>
-          <div className="grid grid-cols-2 gap-3">
-            <BucalYesNo num="01" label="Respira bem pelo nariz?" value={sb.respira_bem_nariz} onChange={v => setBucal('respira_bem_nariz', v)}
-              showDetailOn="nao" detailPlaceholder="O que dificulta?" detailValue={sb.respira_obs} onDetailChange={v => setBucal('respira_obs', v)} />
-            <BucalYesNo num="02" label="Dificuldade/barulho ao abrir a boca?" value={sb.dificuldade_boca} onChange={v => setBucal('dificuldade_boca', v)}
-              detailPlaceholder="Descreva..." detailValue={sb.dificuldade_boca_obs} onDetailChange={v => setBucal('dificuldade_boca_obs', v)} />
-            <BucalYesNo num="03" label="Dor na articulação da mandíbula/ouvido?" value={sb.dor_mandibula} onChange={v => setBucal('dor_mandibula', v)}
-              detailPlaceholder="Onde e com que frequência?" detailValue={sb.dor_mandibula_obs} onDetailChange={v => setBucal('dor_mandibula_obs', v)} />
-            <BucalYesNo num="04" label="Range os dentes?" value={sb.range_dentes} onChange={v => setBucal('range_dentes', v)} />
-            <BucalYesNo num="05" label="Mastiga dos dois lados?" value={sb.mastiga_dois_lados} onChange={v => setBucal('mastiga_dois_lados', v)} />
-            <BucalYesNo num="06" label="Mastiga bem os alimentos?" value={sb.mastiga_bem} onChange={v => setBucal('mastiga_bem', v)} />
-            <BucalYesNo num="07" label="Retenção de comida entre dentes?" value={sb.retencao_comida} onChange={v => setBucal('retencao_comida', v)} />
-            <BucalYesNo num="08" label="Hábito de mascar chiclete/bala?" value={sb.chiclete_bala} onChange={v => setBucal('chiclete_bala', v)}
-              detailPlaceholder="Com que frequência?" detailValue={sb.chiclete_freq} onDetailChange={v => setBucal('chiclete_freq', v)} />
-            <BucalYesNo num="09" label="Ingere muito doce?" value={sb.muito_doce} onChange={v => setBucal('muito_doce', v)} />
-            <BucalYesNo num="10" label="Café/líquidos escuros frequentemente?" value={sb.cafe_escuros} onChange={v => setBucal('cafe_escuros', v)}
-              detailPlaceholder="Quantas vezes ao dia?" detailValue={sb.cafe_freq} onDetailChange={v => setBucal('cafe_freq', v)} />
-            <BucalYesNo num="11" label="Costuma comer fora de hora?" value={sb.come_fora_hora} onChange={v => setBucal('come_fora_hora', v)} />
-            <BucalYesNo num="12" label="Escova os dentes depois de comer?" value={sb.escova_depois} onChange={v => setBucal('escova_depois', v)} />
-            <BucalYesNo num="13" label="Gengiva inchada ou dolorida?" value={sb.gengiva_inchada} onChange={v => setBucal('gengiva_inchada', v)}
-              detailPlaceholder="Em qual região? Frequência?" detailValue={sb.gengiva_inchada_obs} onDetailChange={v => setBucal('gengiva_inchada_obs', v)} />
-            <BucalYesNo num="14" label="Gengiva sangra ao escovar?" value={sb.gengiva_sangra} onChange={v => setBucal('gengiva_sangra', v)} />
-            <BucalYesNo num="15" label="Já teve instruções de higiene bucal?" value={sb.instrucoes_higiene} onChange={v => setBucal('instrucoes_higiene', v)} />
-            <BucalText num="16" label="Quantas vezes escova/dia?" value={sb.vezes_escovacao_dia} onChange={v => setBucal('vezes_escovacao_dia', v)} placeholder="Ex: 3 vezes" />
-            <BucalText num="17" label="Duração da escovação?" value={sb.tempo_escovacao} onChange={v => setBucal('tempo_escovacao', v)} placeholder="Ex: 2 minutos" />
-            <BucalText num="18" label="Vezes que usa fio dental/dia?" value={sb.vezes_fio_dental} onChange={v => setBucal('vezes_fio_dental', v)} placeholder="Ex: 1 vez" />
-            <BucalYesNo num="19" label="Usa antisséptico/enxaguante bucal?" value={sb.antisseptico} onChange={v => setBucal('antisseptico', v)}
-              detailPlaceholder="Qual produto?" detailValue={sb.antisseptico_qual} onDetailChange={v => setBucal('antisseptico_qual', v)} />
-            <BucalText num="20" label="Frequência ao dentista?" value={sb.freq_dentista} onChange={v => setBucal('freq_dentista', v)} placeholder="Ex: 6 em 6 meses" />
-            <BucalText num="21" label="Último tratamento odontológico?" value={sb.ultimo_tratamento} onChange={v => setBucal('ultimo_tratamento', v)} placeholder="Ex: há 6 meses" />
-            <BucalYesNo num="22" label="Já tomou anestesia local?" value={sb.anestesia_local} onChange={v => setBucal('anestesia_local', v)}
-              detailPlaceholder="Correu bem? Alguma reação?" detailValue={sb.anestesia_obs} onDetailChange={v => setBucal('anestesia_obs', v)} />
-          </div>
+              <div className="space-y-3">
+                <YesNoRow label="Fuma ou usa tabaco?"
+                  checked={form.fuma} onChange={v => set('fuma', v)} />
+                <YesNoRow label="Consome bebidas alcoólicas?"
+                  checked={form.consome_alcool} onChange={v => set('consome_alcool', v)} />
+                <YesNoRow label="Range os dentes (bruxismo)?"
+                  checked={form.bruxismo} onChange={v => set('bruxismo', v)} />
+                <YesNoRow label="Tem medo de tratamento dentário?"
+                  checked={form.medo_tratamento} onChange={v => set('medo_tratamento', v)} />
+                <YesNoRow label="Já teve sangramento após procedimento odontológico?"
+                  checked={form.sangramento_pos_procedimento} onChange={v => set('sangramento_pos_procedimento', v)} />
+                <YesNoRow label="Respira bem pelo nariz?"
+                  checked={sb.respira_bem_nariz === 'sim'}
+                  onChange={v => setSB('respira_bem_nariz', v ? 'sim' : 'nao')}
+                  extra={<TextInput value={sb.respira_obs} onChange={v => setSB('respira_obs', v)} placeholder="O que dificulta?" />} />
+                <YesNoRow label="Ingere muito doce?"
+                  checked={sb.muito_doce === 'sim'}
+                  onChange={v => setSB('muito_doce', v ? 'sim' : 'nao')} />
+                <YesNoRow label="Bebe café ou líquidos escuros com frequência?"
+                  checked={sb.cafe_escuros === 'sim'}
+                  onChange={v => setSB('cafe_escuros', v ? 'sim' : 'nao')}
+                  extra={<TextInput value={sb.cafe_freq} onChange={v => setSB('cafe_freq', v)} placeholder="Quantas vezes ao dia?" />} />
+                <YesNoRow label="Hábito de mascar chiclete ou bala?"
+                  checked={sb.chiclete_bala === 'sim'}
+                  onChange={v => setSB('chiclete_bala', v ? 'sim' : 'nao')}
+                  extra={<TextInput value={sb.chiclete_freq} onChange={v => setSB('chiclete_freq', v)} placeholder="Com que frequência?" />} />
+                <YesNoRow label="Range os dentes à noite?"
+                  checked={sb.range_dentes === 'sim'}
+                  onChange={v => setSB('range_dentes', v ? 'sim' : 'nao')} />
+              </div>
 
-          {/* 5. Observações */}
-          <SectionTitle>Observações da cirurgiã-dentista</SectionTitle>
-          <textarea value={form.observacoes} onChange={e => set('observacoes', e.target.value)}
-            rows={3} className="input resize-none w-full" placeholder="Observações clínicas adicionais..." />
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Observações da cirurgiã-dentista</p>
+                <TextInput value={form.observacoes} onChange={v => set('observacoes', v)} rows={3}
+                  placeholder="Observações clínicas, notas para prontuário..." />
+              </div>
 
-          {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+              {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2 shrink-0">
-          <button onClick={onClose} className="btn-secondary">Cancelar</button>
-          <button onClick={handleSave} disabled={saving} className="btn-primary">
-            {saving ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Salvar anamnese'}
-          </button>
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-2 shrink-0">
+          <div className="flex gap-1">
+            {TABS.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={`w-2 h-2 rounded-full transition-colors ${tab === t.id ? 'bg-blue-600' : 'bg-gray-200'}`} />
+            ))}
+          </div>
+          <div className="flex gap-2">
+            {tab > 0 && (
+              <button onClick={() => setTab(t => t - 1)} className="btn-secondary flex items-center gap-1">
+                <ChevronLeft size={14} /> Anterior
+              </button>
+            )}
+            {tab < TABS.length - 1 ? (
+              <button onClick={() => setTab(t => t + 1)} className="btn-primary flex items-center gap-1">
+                Próximo <ChevronRight size={14} />
+              </button>
+            ) : (
+              <>
+                <button onClick={onClose} className="btn-secondary">Cancelar</button>
+                <button onClick={handleSave} disabled={saving} className="btn-primary">
+                  {saving ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Salvar anamnese'}
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

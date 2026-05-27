@@ -49,9 +49,10 @@ function Viewer({ a, onClose, onEdit }: { a: Anamnese; onClose: () => void; onEd
         </div>
 
         <div className="overflow-y-auto flex-1 px-6 py-4">
-          <Sec title="Queixa principal" />
+          <Sec title="Queixa Principal" />
           <Row label="Motivo da consulta" value={a.motivo_consulta} />
-          <Row label="Tem dor?" value={<Bool v={a.tem_dor_atual} />} />
+          {sb.historia_doenca_atual && <Row label="História da doença atual" value={sb.historia_doenca_atual} />}
+          <Row label="Com dor?" value={<Bool v={a.tem_dor_atual} />} />
           {a.tem_dor_atual && <>
             <Row label="Local da dor" value={a.local_dor} />
             <Row label="Intensidade" value={`${a.intensidade_dor}/10`} />
@@ -59,84 +60,68 @@ function Viewer({ a, onClose, onEdit }: { a: Anamnese; onClose: () => void; onEd
           <Row label="Duração do problema" value={a.tempo_problema} />
           <Row label="Última consulta" value={a.ultima_consulta_dentista} />
 
-          <Sec title="Questionário de saúde" />
-          <Row label="01 Em tratamento médico?" value={<Bool v={a.em_tratamento_medico} />} />
+          <Sec title="História Médica Pregressa" />
+          <Row label="Em tratamento médico?" value={<Bool v={a.em_tratamento_medico} />} />
           {a.em_tratamento_medico && <Row label="Qual tratamento?" value={a.detalhe_tratamento_medico} />}
-          <Row label="02 Toma algum remédio?" value={<Bool v={a.usa_medicamento} />} />
+          {sb.medico_responsavel && <Row label="Médico responsável" value={sb.medico_responsavel} />}
+          <Row label="Usa medicamento?" value={<Bool v={a.usa_medicamento} />} />
           {a.usa_medicamento && <Row label="Qual(is)?" value={a.qual_medicamento} />}
-          <Row label="03 Está grávida?" value={<Bool v={a.gestante} />} />
-          {a.gestante && <Row label="Período" value={a.periodo_gestacao} />}
-          <Row label="05 Suspendeu algum remédio?" value={<Bool v={a.suspendeu_remedio} />} />
-          {a.suspendeu_remedio && <Row label="Qual e por quê?" value={a.detalhe_remedio_suspenso} />}
-          <Row label="06 Tem alergia?" value={<Bool v={a.tem_alergia} />} />
+          <Row label="Tem alergia?" value={<Bool v={a.tem_alergia} />} />
           {a.tem_alergia && <Row label="Qual(is)?" value={a.qual_alergia} />}
-          <Row label="07 Sensível a metais/látex?" value={<Bool v={a.sensivel_metais_latex} />} />
+          <Row label="Sensível a metais/látex?" value={<Bool v={a.sensivel_metais_latex} />} />
+          <Row label="Suspendeu remédio?" value={<Bool v={a.suspendeu_remedio} />} />
+          {a.suspendeu_remedio && <Row label="Qual e por quê?" value={a.detalhe_remedio_suspenso} />}
+          <Row label="Já foi operado?" value={<Bool v={a.ja_fez_cirurgia} />} />
+          <Row label="Distúrbio de coagulação?" value={<Bool v={a.disturbio_coagulacao} />} />
+          <Row label="Gestante?" value={<Bool v={a.gestante} />} />
+          {a.gestante && <Row label="Período" value={a.periodo_gestacao} />}
+          {sb.dieta_obs && <Row label="Dieta / alimentação" value={sb.dieta_obs} />}
+          {sb.historia_familiar && <Row label="História familiar" value={sb.historia_familiar} />}
 
-          <div className="grid grid-cols-2 gap-x-4">
-            <Row label="08 Diabético?" value={<Bool v={a.diabetes} />} />
-            <Row label="09 Tem anemia?" value={<Bool v={a.tem_anemia} />} />
-            <Row label="10 Tem asma?" value={<Bool v={a.tem_asma} />} />
-            <Row label="11 HIV positivo?" value={<Bool v={a.hiv_imunossuprimido} />} />
-            <Row label="12 Sujeito a infecções?" value={<Bool v={a.sujeito_infeccoes} />} />
-            <Row label="13 Epilepsia/ataques nervosos?" value={<Bool v={a.tem_epilepsia} />} />
-            <Row label="14 Já teve convulsões?" value={<Bool v={a.ja_teve_convulsoes} />} />
-            <Row label="15 Desmaios/tonturas?" value={<Bool v={a.desmaios_tonturas} />} />
-          </div>
-          <Row label="16 Pressão arterial" value={a.pressao_arterial} />
-          <Row label="17 Usa marcapasso/válvula cardíaca?" value={<Bool v={a.usa_marcapasso} />} />
-          <Row label="18 Articulações artificiais/prótese?" value={<Bool v={a.articulacoes_artificiais} />} />
-          <Row label="19 Formigamento/inchaço?" value={<Bool v={a.formigamento_inchazo} />} />
-          <Row label="20 Sangra muito/cicatriza devagar?" value={<Bool v={a.disturbio_coagulacao} />} />
-          <Row label="21 Fuma/tabaco?" value={<Bool v={a.fuma} />} />
-          <Row label="22 Já foi operado?" value={<Bool v={a.ja_fez_cirurgia} />} />
-          <Row label="23 Já teve doença grave?" value={<Bool v={a.doenca_grave} />} />
-          {a.doenca_grave && <Row label="Qual?" value={a.detalhe_doenca_grave} />}
-          <Row label="24 Problemas cardíacos/gástricos/renais/hepáticos?" value={<Bool v={a.tem_doenca_sistemica} />} />
-          {a.tem_doenca_sistemica && <Row label="Quais?" value={a.qual_doenca} />}
-          {a.outras_informacoes_saude && <Row label="25 Outras informações" value={a.outras_informacoes_saude} />}
-
-          <Sec title="Condições específicas" />
+          <Sec title="Doenças e Condições" />
           <div className="grid grid-cols-2 gap-x-4">
             {([
-              ['Hipertensão', a.hipertensao], ['Problema cardíaco', a.problema_cardiaco],
-              ['Doença renal', a.doenca_renal], ['Doença hepática', a.doenca_hepatica],
-              ['Osteoporose', a.osteoporose], ['Consome álcool', a.consome_alcool],
-              ['Bruxismo', a.bruxismo], ['Medo de tratamento', a.medo_tratamento],
-              ['Sangramento pós-procedimento', a.sangramento_pos_procedimento],
+              ['Hipertensão', a.hipertensao], ['Diabetes', a.diabetes],
+              ['Problema cardíaco', a.problema_cardiaco], ['Doença renal', a.doenca_renal],
+              ['Doença hepática', a.doenca_hepatica], ['Anemia', a.tem_anemia],
+              ['Asma', a.tem_asma], ['Osteoporose', a.osteoporose],
+              ['HIV / imunossuprimido', a.hiv_imunossuprimido], ['Epilepsia', a.tem_epilepsia],
+              ['Convulsões', a.ja_teve_convulsoes], ['Desmaios/tonturas', a.desmaios_tonturas],
+              ['Marcapasso/válvula', a.usa_marcapasso], ['Articulações artificiais', a.articulacoes_artificiais],
+              ['Formigamento/inchaço', a.formigamento_inchazo], ['Sujeito a infecções', a.sujeito_infeccoes],
             ] as [string, boolean][]).map(([label, val]) => (
               <Row key={label} label={label} value={<Bool v={val} />} />
             ))}
           </div>
+          <Row label="Pressão arterial" value={a.pressao_arterial} />
+          {a.doenca_grave && <Row label="Doença grave" value={a.detalhe_doenca_grave || 'Sim'} />}
+          {a.tem_doenca_sistemica && <Row label="Doenças sistêmicas" value={a.qual_doenca} />}
+          {a.outras_informacoes_saude && <Row label="Outras informações" value={a.outras_informacoes_saude} />}
 
-          {Object.values(sb).some(v => v) && <>
-            <Sec title="Saúde bucal e hábitos" />
+          <Sec title="História Odontológica" />
+          {([
+            ['Gengiva inchada?', sb.gengiva_inchada], ['Gengiva sangra?', sb.gengiva_sangra],
+            ['Dificuldade ao abrir boca?', sb.dificuldade_boca], ['Dor na mandíbula?', sb.dor_mandibula],
+            ['Retenção de comida?', sb.retencao_comida], ['Mastiga dos dois lados?', sb.mastiga_dois_lados],
+            ['Anestesia local?', sb.anestesia_local],
+            ['Escovações/dia', sb.vezes_escovacao_dia], ['Duração escovação', sb.tempo_escovacao],
+            ['Fio dental/dia', sb.vezes_fio_dental], ['Enxaguante?', sb.antisseptico],
+            ['Frequência ao dentista', sb.freq_dentista], ['Último tratamento', sb.ultimo_tratamento],
+          ] as [string, string][]).filter(([, v]) => v).map(([label, value]) => (
+            <Row key={label} label={label} value={value} />
+          ))}
+
+          <Sec title="Hábitos" />
+          <div className="grid grid-cols-2 gap-x-4">
             {([
-              ['01 Respira bem pelo nariz?', sb.respira_bem_nariz, sb.respira_obs],
-              ['02 Dificuldade/barulho ao abrir a boca?', sb.dificuldade_boca, sb.dificuldade_boca_obs],
-              ['03 Dor na articulação da mandíbula?', sb.dor_mandibula, sb.dor_mandibula_obs],
-              ['04 Range os dentes?', sb.range_dentes],
-              ['05 Mastiga dos dois lados?', sb.mastiga_dois_lados],
-              ['06 Mastiga bem os alimentos?', sb.mastiga_bem],
-              ['07 Retenção de comida entre dentes?', sb.retencao_comida],
-              ['08 Hábito de mascar chiclete/bala?', sb.chiclete_bala, sb.chiclete_freq],
-              ['09 Ingere muito doce?', sb.muito_doce],
-              ['10 Café/líquidos escuros frequentemente?', sb.cafe_escuros, sb.cafe_freq],
-              ['11 Come fora de hora?', sb.come_fora_hora],
-              ['12 Escova os dentes depois de comer?', sb.escova_depois],
-              ['13 Gengiva inchada ou dolorida?', sb.gengiva_inchada, sb.gengiva_inchada_obs],
-              ['14 Gengiva sangra ao escovar?', sb.gengiva_sangra],
-              ['15 Teve instruções de higiene bucal?', sb.instrucoes_higiene],
-              ['16 Vezes que escova/dia', sb.vezes_escovacao_dia],
-              ['17 Duração da escovação', sb.tempo_escovacao],
-              ['18 Vezes que usa fio dental/dia', sb.vezes_fio_dental],
-              ['19 Usa antisséptico bucal?', sb.antisseptico, sb.antisseptico_qual],
-              ['20 Frequência ao dentista', sb.freq_dentista],
-              ['21 Último tratamento odontológico', sb.ultimo_tratamento],
-              ['22 Tomou anestesia local?', sb.anestesia_local, sb.anestesia_obs],
-            ] as [string, string, string?][]).filter(([, v]) => v).map(([label, value, detail]) => (
-              <Row key={label} label={label} value={detail ? `${value}${detail ? ` — ${detail}` : ''}` : value} />
+              ['Fuma', a.fuma], ['Consome álcool', a.consome_alcool],
+              ['Ingere muito doce', sb.muito_doce === 'sim'], ['Bruxismo', a.bruxismo],
+              ['Medo de tratamento', a.medo_tratamento],
+              ['Sangramento pós-proc.', a.sangramento_pos_procedimento],
+            ] as [string, boolean][]).map(([label, val]) => (
+              <Row key={label} label={label} value={<Bool v={val} />} />
             ))}
-          </>}
+          </div>
 
           {a.observacoes && <>
             <Sec title="Observações da cirurgiã-dentista" />
