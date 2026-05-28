@@ -25,6 +25,18 @@ export interface Database {
           descricao_doenca: string | null
           observacoes_clinicas: string | null
           link_anamnese_pdf: string | null
+          sexo: string | null
+          estado_civil: string | null
+          nacionalidade: string | null
+          filiacao: string | null
+          indicacao: string | null
+          cep: string | null
+          rua: string | null
+          numero_endereco: string | null
+          complemento: string | null
+          bairro: string | null
+          cidade: string | null
+          estado_uf: string | null
           status: 'Ativo' | 'Inativo' | 'Bloqueado'
           novo_paciente: boolean
           data_cadastro: string
