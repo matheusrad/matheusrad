@@ -10,6 +10,17 @@ interface Props {
 
 const STEPS = ['Identificação', 'Contato e Endereço', 'Informações Complementares']
 
+function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1">
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+      {children}
+    </div>
+  )
+}
+
 export function CadastrarPacienteModal({ onClose, onSaved }: Props) {
   const [step, setStep] = useState(0)
   const [form, setForm] = useState({
@@ -121,15 +132,6 @@ export function CadastrarPacienteModal({ onClose, onSaved }: Props) {
     if (err) { setError(err.message); return }
     onSaved()
   }
-
-  const Field = ({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) => (
-    <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-      </label>
-      {children}
-    </div>
-  )
 
   const chips = (key: string, options: string[]) => (
     <div className="flex flex-wrap gap-2">
