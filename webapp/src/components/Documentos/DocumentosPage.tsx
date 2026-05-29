@@ -587,33 +587,99 @@ function gerarNumero(tipo: TipoDoc) {
   return `${p}-${Date.now().toString().slice(-6)}`
 }
 
+// ─── tipos ANVISA ─────────────────────────────────────────────────────────────
+
+interface AnvisaProduto {
+  numeroRegistro?: string
+  nomeComercial?: string
+  principioAtivo?: string
+  laboratorio?: string
+  situacaoRegistro?: string
+  classeTerapeutica?: string
+  concentracao?: string
+  formaFarmaceutica?: string
+}
+
+function toTitleCase(s: string) {
+  return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+}
+
+function nomeAnvisa(p: AnvisaProduto): string {
+  const partes = [p.principioAtivo, p.concentracao, p.formaFarmaceutica]
+    .filter(Boolean)
+    .map(v => toTitleCase(v!))
+  return partes.join(' ')
+}
+
 // ─── autocomplete de medicamento ──────────────────────────────────────────────
 
 function MedicamentoInput({ index, med, controlado, onChange, onRemove, showRemove }: {
   index: number; med: Medicamento; controlado?: boolean
   onChange: (m: Medicamento) => void; onRemove: () => void; showRemove: boolean
 }) {
-  const [query, setQuery]   = useState(med.nome)
-  const [open,  setOpen]    = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [query,        setQuery]        = useState(med.nome)
+  const [open,         setOpen]         = useState(false)
+  const [anvisaLista,  setAnvisaLista]  = useState<AnvisaProduto[]>([])
+  const [anvisaLoad,   setAnvisaLoad]   = useState(false)
+  const ref      = useRef<HTMLDivElement>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const filtrados = MEDICAMENTOS.filter(m =>
     (!controlado || m.controlado) &&
     (controlado || !m.controlado) &&
     m.nome.toLowerCase().includes(query.toLowerCase())
-  ).slice(0, 8)
+  ).slice(0, 6)
+
+  // busca ANVISA quando não há resultado local e query tem 3+ chars
+  useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (!open || query.length < 3 || filtrados.length >= 3) {
+      setAnvisaLista([])
+      return
+    }
+    timerRef.current = setTimeout(async () => {
+      setAnvisaLoad(true)
+      try {
+        const r = await fetch(`/api/anvisa?nome=${encodeURIComponent(query)}`)
+        const d = await r.json()
+        setAnvisaLista((d.content ?? []).slice(0, 8))
+      } catch {
+        setAnvisaLista([])
+      } finally {
+        setAnvisaLoad(false)
+      }
+    }, 700)
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+  }, [query, open, filtrados.length])
 
   function select(m: typeof MEDICAMENTOS[0]) {
     setQuery(m.nome)
     onChange({ nome: m.nome, posologia: m.posologia, indicacao: m.indicacao })
     setOpen(false)
+    setAnvisaLista([])
+  }
+
+  function selectAnvisa(p: AnvisaProduto) {
+    const nome = nomeAnvisa(p)
+    const indicacao = p.classeTerapeutica ? toTitleCase(p.classeTerapeutica) : undefined
+    setQuery(nome)
+    onChange({ nome, posologia: '', indicacao })
+    setOpen(false)
+    setAnvisaLista([])
   }
 
   useEffect(() => {
-    function handler(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+        setAnvisaLista([])
+      }
+    }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
+
+  const showDropdown = open && (filtrados.length > 0 || anvisaLista.length > 0 || anvisaLoad)
 
   return (
     <div className="border border-gray-100 rounded-xl p-3 space-y-2 bg-gray-50/50">
@@ -624,19 +690,67 @@ function MedicamentoInput({ index, med, controlado, onChange, onRemove, showRemo
             className="input w-full text-sm"
             placeholder="Buscar medicamento..."
             value={query}
-            onChange={e => { setQuery(e.target.value); onChange({ nome: e.target.value, posologia: med.posologia }); setOpen(true) }}
+            onChange={e => {
+              setQuery(e.target.value)
+              onChange({ nome: e.target.value, posologia: med.posologia, indicacao: med.indicacao })
+              setOpen(true)
+            }}
             onFocus={() => setOpen(true)}
           />
-          {open && filtrados.length > 0 && (
-            <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden max-h-72 overflow-y-auto">
-              {filtrados.map(m => (
-                <button key={m.nome} type="button" onMouseDown={() => select(m)}
-                  className="w-full text-left px-3 py-2.5 text-sm hover:bg-blue-50 border-b border-gray-50 last:border-0">
-                  <p className="font-medium text-gray-800">{m.nome}</p>
-                  {m.indicacao && <p className="text-xs text-blue-500 truncate">↪ {m.indicacao}</p>}
-                  <p className="text-xs text-gray-400 truncate mt-0.5">{m.posologia}</p>
-                </button>
-              ))}
+          {showDropdown && (
+            <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden max-h-80 overflow-y-auto">
+              {/* resultados locais */}
+              {filtrados.length > 0 && (
+                <>
+                  <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-100">
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Banco local</span>
+                  </div>
+                  {filtrados.map(m => (
+                    <button key={m.nome} type="button" onMouseDown={() => select(m)}
+                      className="w-full text-left px-3 py-2.5 text-sm hover:bg-blue-50 border-b border-gray-50 last:border-0">
+                      <p className="font-medium text-gray-800">{m.nome}</p>
+                      {m.indicacao && <p className="text-xs text-blue-500 truncate">↪ {m.indicacao}</p>}
+                      <p className="text-xs text-gray-400 truncate mt-0.5">{m.posologia}</p>
+                    </button>
+                  ))}
+                </>
+              )}
+
+              {/* resultados ANVISA */}
+              {(anvisaLoad || anvisaLista.length > 0) && (
+                <>
+                  <div className="px-3 py-1.5 bg-green-50 border-b border-green-100 flex items-center gap-1.5">
+                    <span className="text-[10px] font-semibold text-green-700 uppercase tracking-wide">ANVISA</span>
+                    {anvisaLoad && <Loader2 size={10} className="animate-spin text-green-500" />}
+                  </div>
+                  {anvisaLista.map((p, i) => {
+                    const nome = nomeAnvisa(p)
+                    const valido = p.situacaoRegistro?.toLowerCase().includes('válido')
+                    return (
+                      <button key={i} type="button" onMouseDown={() => selectAnvisa(p)}
+                        className="w-full text-left px-3 py-2.5 text-sm hover:bg-green-50 border-b border-gray-50 last:border-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-gray-800 flex-1">{nome || p.nomeComercial}</p>
+                          {valido !== undefined && (
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${valido ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                              {valido ? 'Válido' : 'Vencido'}
+                            </span>
+                          )}
+                        </div>
+                        {p.nomeComercial && nome !== p.nomeComercial && (
+                          <p className="text-xs text-gray-400 truncate">{toTitleCase(p.nomeComercial)}</p>
+                        )}
+                        {p.classeTerapeutica && (
+                          <p className="text-xs text-green-600 truncate">↪ {toTitleCase(p.classeTerapeutica)}</p>
+                        )}
+                        {p.laboratorio && (
+                          <p className="text-[10px] text-gray-300 truncate mt-0.5">{toTitleCase(p.laboratorio)}</p>
+                        )}
+                      </button>
+                    )
+                  })}
+                </>
+              )}
             </div>
           )}
         </div>
