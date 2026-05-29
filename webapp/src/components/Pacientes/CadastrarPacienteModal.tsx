@@ -3,9 +3,12 @@ import { useState } from 'react'
 import { X, ChevronRight, ChevronLeft, User, MapPin, ClipboardList, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
+interface PacienteCriado { id: string; nome: string; telefone: string | null }
+
 interface Props {
   onClose: () => void
-  onSaved: () => void
+  onSaved: (p?: PacienteCriado) => void
+  nomeInicial?: string
 }
 
 const STEPS = ['Identificação', 'Contato e Endereço', 'Informações Complementares']
@@ -21,10 +24,10 @@ function Field({ label, required, children }: { label: string; required?: boolea
   )
 }
 
-export function CadastrarPacienteModal({ onClose, onSaved }: Props) {
+export function CadastrarPacienteModal({ onClose, onSaved, nomeInicial = '' }: Props) {
   const [step, setStep] = useState(0)
   const [form, setForm] = useState({
-    nome: '', data_nascimento: '', sexo: '', cpf: '', rg: '',
+    nome: nomeInicial, data_nascimento: '', sexo: '', cpf: '', rg: '',
     estado_civil: '', nacionalidade: 'Brasileira', profissao: '',
     telefone: '', email: '', cep: '', rua: '', numero_endereco: '',
     complemento: '', bairro: '', cidade: '', estado_uf: '',
@@ -96,7 +99,7 @@ export function CadastrarPacienteModal({ onClose, onSaved }: Props) {
     }
     setSaving(true)
     setError('')
-    const { error: err } = await (supabase.from('pacientes') as any).insert({
+    const { data: novo, error: err } = await (supabase.from('pacientes') as any).insert({
       nome: form.nome.trim(),
       telefone: form.telefone.replace(/\D/g, ''),
       cpf: form.cpf || null,
@@ -127,10 +130,10 @@ export function CadastrarPacienteModal({ onClose, onSaved }: Props) {
       tem_alergia: false,
       usa_medicamento: false,
       tem_doenca_sistemica: false,
-    })
+    }).select('id, nome, telefone').single()
     setSaving(false)
     if (err) { setError(err.message); return }
-    onSaved()
+    onSaved(novo as PacienteCriado)
   }
 
   const chips = (key: string, options: string[]) => (

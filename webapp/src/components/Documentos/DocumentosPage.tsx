@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { FileText, Plus, Search, Printer, X, Trash2, ChevronDown, Check, Send, AlertTriangle, AlertCircle, Info, Loader2, BookOpen, ExternalLink } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getRxCUI, verificarInteracoes, type Interacao } from '@/lib/rxnorm'
+import { CadastrarPacienteModal } from '@/components/Pacientes/CadastrarPacienteModal'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import clsx from 'clsx'
@@ -479,9 +480,10 @@ interface PacienteBusca {
   endereco: string | null; cpf: string | null; data_nascimento: string | null
 }
 
-function BuscaPacienteInput({ value, onSelect }: {
+function BuscaPacienteInput({ value, onSelect, onCadastrar }: {
   value: PacienteBusca | null
   onSelect: (p: PacienteBusca | null) => void
+  onCadastrar?: (nome: string) => void
 }) {
   const [query, setQuery] = useState(value?.nome ?? '')
   const [lista, setLista] = useState<PacienteBusca[]>([])
@@ -517,6 +519,8 @@ function BuscaPacienteInput({ value, onSelect }: {
     setLista([])
   }
 
+  const semResultado = aberto && lista.length === 0 && query.length >= 2
+
   return (
     <div ref={ref} className="relative">
       <input
@@ -546,9 +550,21 @@ function BuscaPacienteInput({ value, onSelect }: {
           ))}
         </div>
       )}
-      {aberto && lista.length === 0 && query.length >= 2 && (
-        <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-white border border-gray-100 rounded-xl shadow-sm px-4 py-3 text-sm text-gray-400">
-          Nenhum paciente encontrado
+      {semResultado && (
+        <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden">
+          <div className="px-4 py-3 text-sm text-gray-400 border-b border-gray-50">
+            Nenhum paciente encontrado para <span className="font-medium text-gray-600">"{query}"</span>
+          </div>
+          {onCadastrar && (
+            <button
+              type="button"
+              onMouseDown={() => { setAberto(false); onCadastrar(query) }}
+              className="w-full text-left px-4 py-3 text-sm font-medium text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+            >
+              <Plus size={14} className="shrink-0" />
+              Cadastrar "{query}" como novo paciente
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -1388,15 +1404,17 @@ function PedidoExameForm({ onChange }: { onChange: (d: object) => void }) {
 // ─── modal novo documento ─────────────────────────────────────────────────────
 
 function NovoDocModal({ onClose, onSaved }: { onClose: () => void; onSaved: (d: DocRow) => void }) {
-  const [step,     setStep]     = useState<1 | 2>(1)
-  const [tipo,     setTipo]     = useState<TipoDoc | null>(null)
-  const [paciente, setPaciente] = useState<PacienteBusca | null>(null)
-  const [dados,    setDados]    = useState<object>({})
-  const [saving,   setSaving]   = useState(false)
-  const [error,    setError]    = useState('')
+  const [step,         setStep]         = useState<1 | 2>(1)
+  const [tipo,         setTipo]         = useState<TipoDoc | null>(null)
+  const [paciente,     setPaciente]     = useState<PacienteBusca | null>(null)
+  const [dados,        setDados]        = useState<object>({})
+  const [saving,       setSaving]       = useState(false)
+  const [error,        setError]        = useState('')
+  const [showCadastro, setShowCadastro] = useState(false)
+  const [nomeCadastro, setNomeCadastro] = useState('')
 
   async function salvar() {
-    if (!tipo || !paciente) { setError('Selecione um paciente.'); return }
+    if (!tipo || !paciente) { setError('Selecione um paciente cadastrado.'); return }
     setSaving(true); setError('')
     const { data, error: err } = await (supabase.from('documentos') as any).insert({
       tipo,
@@ -1410,60 +1428,88 @@ function NovoDocModal({ onClose, onSaved }: { onClose: () => void; onSaved: (d: 
     onClose()
   }
 
-  return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] flex flex-col">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
-          <div>
-            <h2 className="font-semibold text-gray-900">Novo documento</h2>
-            {tipo && <p className="text-xs text-gray-400 mt-0.5">{tipoLabel(tipo)}</p>}
-          </div>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"><X size={16} /></button>
-        </div>
+  function handleCadastrar(nome: string) {
+    setNomeCadastro(nome)
+    setShowCadastro(true)
+  }
 
-        <div className="p-6 overflow-y-auto flex-1 space-y-5">
-          {step === 1 && (
-            <div className="grid grid-cols-2 gap-3">
-              {TIPOS.map(t => (
-                <button key={t.id} onClick={() => { setTipo(t.id); setStep(2) }}
-                  className={clsx('text-left p-4 rounded-xl border-2 transition-all hover:shadow-sm', t.cor)}>
-                  <p className="font-semibold text-sm">{t.label}</p>
-                  <p className="text-xs mt-0.5 opacity-70">{t.desc}</p>
+  function handlePacienteCriado(p?: { id: string; nome: string; telefone: string | null }) {
+    setShowCadastro(false)
+    if (p) {
+      setPaciente({ id: p.id, nome: p.nome, telefone: p.telefone, endereco: null, cpf: null, data_nascimento: null })
+    }
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+        onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] flex flex-col">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+            <div>
+              <h2 className="font-semibold text-gray-900">Novo documento</h2>
+              {tipo && <p className="text-xs text-gray-400 mt-0.5">{tipoLabel(tipo)}</p>}
+            </div>
+            <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"><X size={16} /></button>
+          </div>
+
+          <div className="p-6 overflow-y-auto flex-1 space-y-5">
+            {step === 1 && (
+              <div className="grid grid-cols-2 gap-3">
+                {TIPOS.map(t => (
+                  <button key={t.id} onClick={() => { setTipo(t.id); setStep(2) }}
+                    className={clsx('text-left p-4 rounded-xl border-2 transition-all hover:shadow-sm', t.cor)}>
+                    <p className="font-semibold text-sm">{t.label}</p>
+                    <p className="text-xs mt-0.5 opacity-70">{t.desc}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {step === 2 && tipo && (
+              <>
+                <button onClick={() => { setStep(1); setTipo(null) }}
+                  className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
+                  ← Trocar tipo
                 </button>
-              ))}
+                <div>
+                  <label className="label">Paciente *</label>
+                  <BuscaPacienteInput value={paciente} onSelect={setPaciente} onCadastrar={handleCadastrar} />
+                  {!paciente && (
+                    <p className="mt-1.5 text-[11px] text-amber-600 flex items-center gap-1">
+                      <AlertTriangle size={11} className="shrink-0" />
+                      O paciente deve estar cadastrado para emitir documentos.
+                    </p>
+                  )}
+                </div>
+                {(tipo === 'receituario' || tipo === 'receituario_especial' || tipo === 'receituario_controle_especial') &&
+                  <ReceituarioForm especial={tipo !== 'receituario'} onChange={setDados} />}
+                {tipo === 'atestado' && <AtestadoForm onChange={setDados} />}
+                {tipo === 'pedido_exame' && <PedidoExameForm onChange={setDados} />}
+                {error && <p className="text-sm text-red-600">{error}</p>}
+              </>
+            )}
+          </div>
+
+          {step === 2 && (
+            <div className="px-6 py-4 border-t border-gray-100 flex gap-3 justify-end shrink-0">
+              <button onClick={onClose} className="btn-secondary">Cancelar</button>
+              <button onClick={salvar} disabled={saving || !paciente} className="btn-primary disabled:opacity-40">
+                {saving ? 'Salvando...' : 'Salvar documento'}
+              </button>
             </div>
           )}
-
-          {step === 2 && tipo && (
-            <>
-              <button onClick={() => { setStep(1); setTipo(null) }}
-                className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
-                ← Trocar tipo
-              </button>
-              <div>
-                <label className="label">Paciente *</label>
-                <BuscaPacienteInput value={paciente} onSelect={setPaciente} />
-              </div>
-              {(tipo === 'receituario' || tipo === 'receituario_especial' || tipo === 'receituario_controle_especial') &&
-                <ReceituarioForm especial={tipo !== 'receituario'} onChange={setDados} />}
-              {tipo === 'atestado' && <AtestadoForm onChange={setDados} />}
-              {tipo === 'pedido_exame' && <PedidoExameForm onChange={setDados} />}
-              {error && <p className="text-sm text-red-600">{error}</p>}
-            </>
-          )}
         </div>
-
-        {step === 2 && (
-          <div className="px-6 py-4 border-t border-gray-100 flex gap-3 justify-end shrink-0">
-            <button onClick={onClose} className="btn-secondary">Cancelar</button>
-            <button onClick={salvar} disabled={saving || !paciente} className="btn-primary disabled:opacity-40">
-              {saving ? 'Salvando...' : 'Salvar documento'}
-            </button>
-          </div>
-        )}
       </div>
-    </div>
+
+      {showCadastro && (
+        <CadastrarPacienteModal
+          nomeInicial={nomeCadastro}
+          onClose={() => setShowCadastro(false)}
+          onSaved={handlePacienteCriado}
+        />
+      )}
+    </>
   )
 }
 
