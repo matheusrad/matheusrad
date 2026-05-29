@@ -4,6 +4,7 @@ import { FileText, Plus, Search, Printer, X, Trash2, ChevronDown, Check, Send, A
 import { supabase } from '@/lib/supabase'
 import { getRxCUI, verificarInteracoes, type Interacao } from '@/lib/rxnorm'
 import { CadastrarPacienteModal } from '@/components/Pacientes/CadastrarPacienteModal'
+import { buscarCid, type CidEntry } from '@/data/cid10'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import clsx from 'clsx'
@@ -1027,6 +1028,63 @@ function ReceituarioForm({ especial, onChange }: { especial?: boolean; onChange:
 
 // ─── formulário atestado ──────────────────────────────────────────────────────
 
+// ─── autocomplete CID-10 ──────────────────────────────────────────────────────
+
+function CidInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [query,    setQuery]    = useState(value)
+  const [open,     setOpen]     = useState(false)
+  const [lista,    setLista]    = useState<CidEntry[]>([])
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  function handleChange(v: string) {
+    setQuery(v)
+    onChange(v)
+    setLista(buscarCid(v))
+    setOpen(true)
+  }
+
+  function select(c: CidEntry) {
+    const full = `${c.codigo} — ${c.descricao}`
+    setQuery(full)
+    onChange(full)
+    setOpen(false)
+    setLista([])
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        className="input w-full"
+        placeholder="Ex: K04.0 — Pulpite"
+        value={query}
+        onChange={e => handleChange(e.target.value)}
+        onFocus={() => lista.length > 0 && setOpen(true)}
+      />
+      {open && lista.length > 0 && (
+        <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden max-h-64 overflow-y-auto">
+          {lista.map(c => (
+            <button key={c.codigo} type="button" onMouseDown={() => select(c)}
+              className="w-full text-left px-3 py-2.5 hover:bg-blue-50 border-b border-gray-50 last:border-0">
+              <span className="text-xs font-bold text-blue-600 mr-2">{c.codigo}</span>
+              <span className="text-sm text-gray-700">{c.descricao}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── formulário atestado ──────────────────────────────────────────────────────
+
 function AtestadoForm({ onChange }: { onChange: (d: object) => void }) {
   const [tipoAt,     setTipoAt]     = useState<'comparecimento' | 'incapacidade'>('comparecimento')
   const [data,       setData]       = useState(format(new Date(), 'yyyy-MM-dd'))
@@ -1095,9 +1153,8 @@ function AtestadoForm({ onChange }: { onChange: (d: object) => void }) {
       </div>
 
       <div>
-        <label className="label">CID (opcional)</label>
-        <input className="input" placeholder="Ex: K04.0 – Pulpite" value={cid}
-          onChange={e => { setCid(e.target.value); update(tipoAt, data, horaInicio, horaFim, duracao, e.target.value) }} />
+        <label className="label">CID-10 (opcional)</label>
+        <CidInput value={cid} onChange={v => { setCid(v); update(tipoAt, data, horaInicio, horaFim, duracao, v) }} />
       </div>
 
       <div>
