@@ -1,7 +1,8 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
-import { FileText, Plus, Search, Printer, X, Trash2, ChevronDown, Check, Send } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { FileText, Plus, Search, Printer, X, Trash2, ChevronDown, Check, Send, AlertTriangle, AlertCircle, Info, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { getRxCUI, verificarInteracoes, type Interacao } from '@/lib/rxnorm'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import clsx from 'clsx'
@@ -346,6 +347,72 @@ const MEDICAMENTOS: { nome: string; posologia: string; indicacao: string; contro
   },
 ]
 
+// ─── mapeamento para RxNorm (nomes genéricos em inglês) ──────────────────────
+
+const RXNORM_NOMES: Record<string, string> = {
+  // Analgésicos
+  'Paracetamol 500mg':                                 'acetaminophen',
+  'Paracetamol 750mg':                                 'acetaminophen',
+  'Dipirona 500mg':                                    'dipyrone',
+  'Ácido Acetilsalicílico (AAS) 500mg':                'aspirin',
+  'Ácido Mefenâmico 500mg':                            'mefenamic acid',
+  'Ibuprofeno 400mg':                                  'ibuprofen',
+  'Ibuprofeno 600mg':                                  'ibuprofen',
+  'Nimesulida 100mg':                                  'nimesulide',
+  'Diclofenaco Potássico 50mg':                        'diclofenac',
+  'Naproxeno 250mg':                                   'naproxen',
+  'Piroxicam 20mg':                                    'piroxicam',
+  'Cetoprofeno 50mg':                                  'ketoprofen',
+  'Meloxicam 15mg':                                    'meloxicam',
+  'Celecoxibe 200mg':                                  'celecoxib',
+  'Etoricoxibe 90mg':                                  'etoricoxib',
+  'Etoricoxibe 60mg':                                  'etoricoxib',
+  'Tenoxicam 20mg':                                    'tenoxicam',
+  'Etodolaco 300mg':                                   'etodolac',
+  // Opioides
+  'Paracetamol 500mg + Fosfato de Codeína 7,5mg':      'codeine',
+  'Paracetamol 500mg + Fosfato de Codeína 30mg':       'codeine',
+  'Cloridrato de Tramadol 50mg':                       'tramadol',
+  // Antidepressivos / Neurológicos
+  'Amitriptilina 25mg':                                'amitriptyline',
+  'Nortriptilina 25mg':                                'nortriptyline',
+  'Carbamazepina 200mg':                               'carbamazepine',
+  // Corticosteroides
+  'Dexametasona 4mg':                                  'dexamethasone',
+  'Dexametasona Elixir 0,1mg/mL':                      'dexamethasone',
+  'Betametasona 0,5mg':                                'betamethasone',
+  'Betametasona Elixir 0,1mg/mL':                      'betamethasone',
+  'Prednisona 20mg':                                   'prednisone',
+  'Prednisolona 20mg':                                 'prednisolone',
+  // Antibióticos
+  'Amoxicilina 500mg':                                 'amoxicillin',
+  'Amoxicilina 875mg + Ácido Clavulânico 125mg':       'amoxicillin clavulanate',
+  'Azitromicina 500mg':                                'azithromycin',
+  'Cefalexina 500mg':                                  'cephalexin',
+  'Clindamicina 300mg':                                'clindamycin',
+  'Metronidazol 250mg':                                'metronidazole',
+  'Metronidazol 400mg':                                'metronidazole',
+  'Tetraciclina 500mg':                                'tetracycline',
+  // Antivirais
+  'Aciclovir 200mg':                                   'acyclovir',
+  'Valaciclovir 500mg':                                'valacyclovir',
+  'Fanciclovir 500mg':                                 'famciclovir',
+  // Antifúngicos
+  'Fluconazol 150mg':                                  'fluconazole',
+  'Itraconazol 100mg':                                 'itraconazole',
+  'Cetoconazol 200mg':                                 'ketoconazole',
+  // Benzodiazepínicos
+  'Diazepam 5mg':                                      'diazepam',
+  'Diazepam 10mg':                                     'diazepam',
+  'Lorazepam 2mg':                                     'lorazepam',
+  'Alprazolam 1mg':                                    'alprazolam',
+  'Midazolam 7,5mg':                                   'midazolam',
+  'Midazolam 15mg':                                    'midazolam',
+  // Outros sistêmicos
+  'Cloridrato de Pilocarpina 5mg':                     'pilocarpine',
+  'Ácido Tranexâmico 250mg':                           'tranexamic acid',
+}
+
 // ─── banco de exames por categoria ───────────────────────────────────────────
 
 const CATEGORIAS_EXAME = [
@@ -599,9 +666,12 @@ function MedicamentoInput({ index, med, controlado, onChange, onRemove, showRemo
 // ─── formulário receituário ───────────────────────────────────────────────────
 
 function ReceituarioForm({ especial, onChange }: { especial?: boolean; onChange: (d: object) => void }) {
-  const [meds,  setMeds]  = useState<Medicamento[]>([{ nome: '', posologia: '' }])
-  const [obs,   setObs]   = useState('')
-  const [notif, setNotif] = useState('')
+  const [meds,       setMeds]       = useState<Medicamento[]>([{ nome: '', posologia: '' }])
+  const [obs,        setObs]        = useState('')
+  const [notif,      setNotif]      = useState('')
+  const [interacoes, setInteracoes] = useState<Interacao[]>([])
+  const [checking,   setChecking]   = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   function update(m = meds, o = obs, n = notif) {
     onChange({ medicamentos: m, observacoes: o, ...(especial ? { numero_notificacao: n } : {}) })
@@ -610,6 +680,24 @@ function ReceituarioForm({ especial, onChange }: { especial?: boolean; onChange:
   function setMed(i: number, val: Medicamento) { const next = meds.map((m, idx) => idx === i ? val : m); setMeds(next); update(next) }
   function addMed() { const next = [...meds, { nome: '', posologia: '' }]; setMeds(next); update(next) }
   function removeMed(i: number) { const next = meds.filter((_, idx) => idx !== i); setMeds(next); update(next) }
+
+  const checarInteracoes = useCallback(async (lista: Medicamento[]) => {
+    const nomesComRxNorm = lista.map(m => RXNORM_NOMES[m.nome]).filter(Boolean) as string[]
+    if (nomesComRxNorm.length < 2) { setInteracoes([]); return }
+
+    setChecking(true)
+    const rxcuis = (await Promise.all(nomesComRxNorm.map(getRxCUI))).filter(Boolean) as string[]
+    const unicos = rxcuis.filter((v, i, a) => a.indexOf(v) === i)
+    const resultado = unicos.length >= 2 ? await verificarInteracoes(unicos) : []
+    setInteracoes(resultado)
+    setChecking(false)
+  }, [])
+
+  useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => checarInteracoes(meds), 900)
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+  }, [meds, checarInteracoes])
 
   return (
     <div className="space-y-4">
@@ -634,6 +722,56 @@ function ReceituarioForm({ especial, onChange }: { especial?: boolean; onChange:
           ))}
         </div>
       </div>
+
+      {/* Painel de interações */}
+      {checking && (
+        <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100">
+          <Loader2 size={13} className="animate-spin" />
+          Verificando interações medicamentosas...
+        </div>
+      )}
+      {!checking && interacoes.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 bg-amber-100 border-b border-amber-200">
+            <AlertTriangle size={14} className="text-amber-600 shrink-0" />
+            <span className="text-xs font-semibold text-amber-700">
+              {interacoes.length} interação{interacoes.length > 1 ? 'ões' : ''} detectada{interacoes.length > 1 ? 's' : ''}
+            </span>
+          </div>
+          <div className="divide-y divide-amber-100">
+            {interacoes.map((it, i) => {
+              const cor = it.severidade === 'high'
+                ? { bg: 'bg-red-50', badge: 'bg-red-100 text-red-700', icon: <AlertCircle size={12} className="text-red-500 shrink-0 mt-0.5" />, label: 'Grave' }
+                : it.severidade === 'moderate'
+                ? { bg: 'bg-amber-50', badge: 'bg-amber-100 text-amber-700', icon: <AlertTriangle size={12} className="text-amber-500 shrink-0 mt-0.5" />, label: 'Moderada' }
+                : { bg: 'bg-blue-50', badge: 'bg-blue-100 text-blue-700', icon: <Info size={12} className="text-blue-400 shrink-0 mt-0.5" />, label: 'Leve' }
+              return (
+                <div key={i} className={`px-3 py-2.5 ${cor.bg}`}>
+                  <div className="flex items-start gap-2">
+                    {cor.icon}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${cor.badge}`}>{cor.label}</span>
+                        {it.farmacos.filter(Boolean).map(f => (
+                          <span key={f} className="text-[10px] font-medium text-gray-500 bg-white border border-gray-200 rounded px-1.5 py-0.5 capitalize">{f}</span>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-600 leading-relaxed">{it.descricao}</p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+      {!checking && interacoes.length === 0 && meds.filter(m => RXNORM_NOMES[m.nome]).length >= 2 && (
+        <div className="flex items-center gap-2 text-xs text-green-600 bg-green-50 rounded-xl px-3 py-2 border border-green-100">
+          <Check size={13} className="shrink-0" />
+          Nenhuma interação conhecida entre os medicamentos selecionados.
+        </div>
+      )}
+
       <div>
         <label className="label">Observações (opcional)</label>
         <textarea className="input w-full resize-none text-sm" rows={2}
