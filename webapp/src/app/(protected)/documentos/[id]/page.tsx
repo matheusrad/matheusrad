@@ -555,11 +555,10 @@ export default function DocumentoPrintPage() {
     if (!doc) return null
     const props = { doc, clinica, assinatura, paciente }
     switch (doc.tipo) {
-      case 'receituario':                   return <PrintReceituario {...props} />
-      case 'receituario_especial':          return <PrintReceituario {...props} especial />
-      case 'receituario_controle_especial': return <PrintReceituarioControleEspecial {...props} />
-      case 'atestado':                      return <PrintAtestado {...props} />
-      case 'pedido_exame':                  return <PrintPedidoExame {...props} />
+      case 'receituario':          return <PrintReceituario {...props} />
+      case 'receituario_especial': return <PrintReceituario {...props} especial />
+      case 'atestado':             return <PrintAtestado {...props} />
+      case 'pedido_exame':         return <PrintPedidoExame {...props} />
       default: return <p>Tipo desconhecido</p>
     }
   }
@@ -607,7 +606,7 @@ export default function DocumentoPrintPage() {
       </div>
 
       {/* Versão que será impressa */}
-      <div className={`hidden print:block print-body${doc.tipo === 'receituario_controle_especial' ? ' print-body--rce' : ''}`}>
+      <div className="hidden print:block print-body">
         {renderDoc()}
       </div>
 
@@ -667,12 +666,10 @@ export default function DocumentoPrintPage() {
         }
       `}</style>
 
-      {/* Rodapé fixo na impressão — oculto no RCE (tem própria estrutura) */}
-      {doc.tipo !== 'receituario_controle_especial' && (
-        <div className="rodape-print" style={{ display: 'none' }}>
-          <Rodape clinica={clinica} />
-        </div>
-      )}
+      {/* Rodapé fixo na impressão */}
+      <div className="rodape-print" style={{ display: 'none' }}>
+        <Rodape clinica={clinica} />
+      </div>
     </>
   )
 }

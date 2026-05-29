@@ -573,14 +573,13 @@ function BuscaPacienteInput({ value, onSelect, onCadastrar }: {
 
 // ─── tipos ────────────────────────────────────────────────────────────────────
 
-type TipoDoc = 'receituario' | 'receituario_especial' | 'receituario_controle_especial' | 'atestado' | 'pedido_exame'
+type TipoDoc = 'receituario' | 'receituario_especial' | 'atestado' | 'pedido_exame'
 
 const TIPOS: { id: TipoDoc; label: string; desc: string; cor: string }[] = [
-  { id: 'receituario',                    label: 'Receituário simples',           desc: 'Medicamentos e posologia',               cor: 'bg-blue-50 border-blue-200 text-blue-700' },
-  { id: 'receituario_especial',           label: 'Receituário especial',          desc: 'Medicamentos controlados (2 vias)',       cor: 'bg-purple-50 border-purple-200 text-purple-700' },
-  { id: 'receituario_controle_especial',  label: 'Controle Especial',             desc: 'Formulário oficial · 2 vias impressas',  cor: 'bg-rose-50 border-rose-200 text-rose-700' },
-  { id: 'atestado',                       label: 'Atestado',                      desc: 'Comparecimento ou incapacidade',          cor: 'bg-green-50 border-green-200 text-green-700' },
-  { id: 'pedido_exame',                   label: 'Pedido de exame',               desc: 'Raio-X, tomografia, laboratorial',        cor: 'bg-amber-50 border-amber-200 text-amber-700' },
+  { id: 'receituario',          label: 'Receituário simples',  desc: 'Medicamentos e posologia',          cor: 'bg-blue-50 border-blue-200 text-blue-700' },
+  { id: 'receituario_especial', label: 'Receituário especial', desc: 'Medicamentos controlados (2 vias)', cor: 'bg-purple-50 border-purple-200 text-purple-700' },
+  { id: 'atestado',             label: 'Atestado',             desc: 'Comparecimento ou incapacidade',    cor: 'bg-green-50 border-green-200 text-green-700' },
+  { id: 'pedido_exame',         label: 'Pedido de exame',      desc: 'Raio-X, tomografia, laboratorial',  cor: 'bg-amber-50 border-amber-200 text-amber-700' },
 ]
 
 interface Medicamento { nome: string; posologia: string; indicacao?: string }
@@ -590,8 +589,7 @@ interface DocRow { id: string; tipo: TipoDoc; paciente_nome: string | null; nume
 function badgeColor(tipo: TipoDoc) {
   switch (tipo) {
     case 'receituario':                   return 'bg-blue-50 text-blue-700 border-blue-200'
-    case 'receituario_especial':          return 'bg-purple-50 text-purple-700 border-purple-200'
-    case 'receituario_controle_especial': return 'bg-rose-50 text-rose-700 border-rose-200'
+    case 'receituario_especial': return 'bg-purple-50 text-purple-700 border-purple-200'
     case 'atestado':                      return 'bg-green-50 text-green-700 border-green-200'
     case 'pedido_exame':                  return 'bg-amber-50 text-amber-700 border-amber-200'
   }
@@ -599,7 +597,7 @@ function badgeColor(tipo: TipoDoc) {
 
 function tipoLabel(tipo: TipoDoc) { return TIPOS.find(t => t.id === tipo)?.label ?? tipo }
 function gerarNumero(tipo: TipoDoc) {
-  const p = { receituario: 'RS', receituario_especial: 'RE', receituario_controle_especial: 'RC', atestado: 'AT', pedido_exame: 'PE' }[tipo]
+  const p = { receituario: 'RS', receituario_especial: 'RE', atestado: 'AT', pedido_exame: 'PE' }[tipo]
   return `${p}-${Date.now().toString().slice(-6)}`
 }
 
@@ -1482,8 +1480,8 @@ function NovoDocModal({ onClose, onSaved }: { onClose: () => void; onSaved: (d: 
                     </p>
                   )}
                 </div>
-                {(tipo === 'receituario' || tipo === 'receituario_especial' || tipo === 'receituario_controle_especial') &&
-                  <ReceituarioForm especial={tipo !== 'receituario'} onChange={setDados} />}
+                {(tipo === 'receituario' || tipo === 'receituario_especial') &&
+                  <ReceituarioForm especial={tipo === 'receituario_especial'} onChange={setDados} />}
                 {tipo === 'atestado' && <AtestadoForm onChange={setDados} />}
                 {tipo === 'pedido_exame' && <PedidoExameForm onChange={setDados} />}
                 {error && <p className="text-sm text-red-600">{error}</p>}
