@@ -24,6 +24,9 @@ webapp/.next/
 webapp/out/
 webapp/.vercel/
 
+# TypeScript incremental build cache
+*.tsbuildinfo
+
 # Node modules
 node_modules/
 webapp/node_modules/
