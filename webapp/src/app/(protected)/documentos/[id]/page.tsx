@@ -7,9 +7,7 @@ import { ptBR } from 'date-fns/locale'
 import { Printer, ArrowLeft, PenLine, Upload, X, RotateCcw } from 'lucide-react'
 
 interface DocRow {
-  id: string
-  tipo: 'receituario' | 'receituario_especial' | 'atestado' | 'pedido_exame' | 'tratamentos_realizados' | string
-  paciente_nome: string | null; paciente_id: string | null
+  id: string; tipo: string; paciente_nome: string | null; paciente_id: string | null
   numero_documento: string | null; conteudo_texto: string | null; created_at: string
 }
 interface PacienteRow {
@@ -349,88 +347,6 @@ function PrintPedidoExame({ doc, clinica, assinatura }: { doc: DocRow; clinica: 
   )
 }
 
-// ─── tratamentos realizados ───────────────────────────────────────────────────
-
-function PrintTratamentos({ doc, clinica, assinatura }: { doc: DocRow; clinica: Clinica; assinatura: string | null }) {
-  const dados = JSON.parse(doc.conteudo_texto ?? '{}')
-  const f = dados.exame_fisico ?? {}
-
-  const secoes: { titulo: string; campos: { label: string; valor: string }[] }[] = [
-    {
-      titulo: 'Exame Extrabucal',
-      campos: [
-        { label: 'Face / Assimetria', valor: f.face },
-        { label: 'ATM', valor: f.atm },
-        { label: 'Linfonodos', valor: f.linfonodos },
-        { label: 'Lábios', valor: f.labios },
-        { label: 'Mucosa labial', valor: f.mucosa_labial },
-      ],
-    },
-    {
-      titulo: 'Exame Intrabucal',
-      campos: [
-        { label: 'Mucosa oral', valor: f.mucosa_oral },
-        { label: 'Língua / Assoalho', valor: f.lingua },
-        { label: 'Assoalho bucal', valor: f.assoalho },
-        { label: 'Palato / Orofaringe', valor: f.palato },
-        { label: 'Gengiva / Periodonto', valor: f.gengiva },
-      ],
-    },
-    {
-      titulo: 'Oclusão / DTM',
-      campos: [
-        { label: 'Classe de Angle', valor: f.classe_angle },
-        { label: 'Overjet (mm)', valor: f.overjet },
-        { label: 'Overbite (mm)', valor: f.overbite },
-        { label: 'Sinais de DTM', valor: f.dtm_sinais },
-        { label: 'Parafunções', valor: f.parafuncoes },
-      ],
-    },
-    {
-      titulo: 'Patologias Observadas',
-      campos: [
-        { label: 'Lesões de cárie', valor: f.lesoes_carie },
-        { label: 'Fraturas', valor: f.fraturas },
-        { label: 'Lesões em mucosas', valor: f.lesoes_mucosa },
-        { label: 'Outras patologias', valor: f.outras_patologias },
-      ],
-    },
-  ]
-
-  const secoesComDados = secoes.filter(s => s.campos.some(c => c.valor))
-
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1">
-        <Cabecalho clinica={clinica} />
-        <p className="text-center font-bold text-sm uppercase tracking-widest mb-6">Tratamentos Realizados</p>
-        <p className="text-sm mb-5"><span className="font-medium">Paciente:</span> {doc.paciente_nome}</p>
-        <div className="space-y-5">
-          {secoesComDados.map(secao => (
-            <div key={secao.titulo}>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{secao.titulo}</p>
-              <table className="w-full text-sm border-collapse">
-                <tbody>
-                  {secao.campos.filter(c => c.valor).map(campo => (
-                    <tr key={campo.label} className="border-b border-gray-100">
-                      <td className="py-1.5 pr-4 text-gray-500 text-xs w-40 shrink-0">{campo.label}</td>
-                      <td className="py-1.5 text-gray-800">{campo.valor}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
-          {secoesComDados.length === 0 && (
-            <p className="text-sm text-gray-400 italic">Nenhum achado registrado.</p>
-          )}
-        </div>
-      </div>
-      <Assinatura clinica={clinica} assinatura={assinatura} data={doc.created_at} />
-    </div>
-  )
-}
-
 // ─── receituário controle especial ───────────────────────────────────────────
 
 const RCE_COR = '#9b2d78'
@@ -639,11 +555,10 @@ export default function DocumentoPrintPage() {
     if (!doc) return null
     const props = { doc, clinica, assinatura, paciente }
     switch (doc.tipo) {
-      case 'receituario':            return <PrintReceituario {...props} />
-      case 'receituario_especial':   return <PrintReceituario {...props} especial />
-      case 'atestado':               return <PrintAtestado {...props} />
-      case 'pedido_exame':           return <PrintPedidoExame {...props} />
-      case 'tratamentos_realizados': return <PrintTratamentos {...props} />
+      case 'receituario':          return <PrintReceituario {...props} />
+      case 'receituario_especial': return <PrintReceituario {...props} especial />
+      case 'atestado':             return <PrintAtestado {...props} />
+      case 'pedido_exame':         return <PrintPedidoExame {...props} />
       default: return <p>Tipo desconhecido</p>
     }
   }

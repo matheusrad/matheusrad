@@ -574,14 +574,13 @@ function BuscaPacienteInput({ value, onSelect, onCadastrar }: {
 
 // ─── tipos ────────────────────────────────────────────────────────────────────
 
-type TipoDoc = 'receituario' | 'receituario_especial' | 'atestado' | 'pedido_exame' | 'tratamentos_realizados'
+type TipoDoc = 'receituario' | 'receituario_especial' | 'atestado' | 'pedido_exame'
 
 const TIPOS: { id: TipoDoc; label: string; desc: string; cor: string }[] = [
-  { id: 'receituario',            label: 'Receituário simples',    desc: 'Medicamentos e posologia',            cor: 'bg-blue-50 border-blue-200 text-blue-700' },
-  { id: 'receituario_especial',   label: 'Receituário especial',   desc: 'Medicamentos controlados (2 vias)',   cor: 'bg-purple-50 border-purple-200 text-purple-700' },
-  { id: 'atestado',               label: 'Atestado',               desc: 'Comparecimento ou incapacidade',      cor: 'bg-green-50 border-green-200 text-green-700' },
-  { id: 'pedido_exame',           label: 'Pedido de exame',        desc: 'Raio-X, tomografia, laboratorial',    cor: 'bg-amber-50 border-amber-200 text-amber-700' },
-  { id: 'tratamentos_realizados', label: 'Tratamentos realizados', desc: 'Exame clínico e achados bucais',      cor: 'bg-teal-50 border-teal-200 text-teal-700' },
+  { id: 'receituario',          label: 'Receituário simples',  desc: 'Medicamentos e posologia',          cor: 'bg-blue-50 border-blue-200 text-blue-700' },
+  { id: 'receituario_especial', label: 'Receituário especial', desc: 'Medicamentos controlados (2 vias)', cor: 'bg-purple-50 border-purple-200 text-purple-700' },
+  { id: 'atestado',             label: 'Atestado',             desc: 'Comparecimento ou incapacidade',    cor: 'bg-green-50 border-green-200 text-green-700' },
+  { id: 'pedido_exame',         label: 'Pedido de exame',      desc: 'Raio-X, tomografia, laboratorial',  cor: 'bg-amber-50 border-amber-200 text-amber-700' },
 ]
 
 interface Medicamento { nome: string; posologia: string; indicacao?: string }
@@ -590,17 +589,16 @@ interface DocRow { id: string; tipo: TipoDoc; paciente_nome: string | null; nume
 
 function badgeColor(tipo: TipoDoc) {
   switch (tipo) {
-    case 'receituario':            return 'bg-blue-50 text-blue-700 border-blue-200'
-    case 'receituario_especial':   return 'bg-purple-50 text-purple-700 border-purple-200'
-    case 'atestado':               return 'bg-green-50 text-green-700 border-green-200'
-    case 'pedido_exame':           return 'bg-amber-50 text-amber-700 border-amber-200'
-    case 'tratamentos_realizados': return 'bg-teal-50 text-teal-700 border-teal-200'
+    case 'receituario':          return 'bg-blue-50 text-blue-700 border-blue-200'
+    case 'receituario_especial': return 'bg-purple-50 text-purple-700 border-purple-200'
+    case 'atestado':             return 'bg-green-50 text-green-700 border-green-200'
+    case 'pedido_exame':         return 'bg-amber-50 text-amber-700 border-amber-200'
   }
 }
 
 function tipoLabel(tipo: TipoDoc) { return TIPOS.find(t => t.id === tipo)?.label ?? tipo }
 function gerarNumero(tipo: TipoDoc) {
-  const p = { receituario: 'RS', receituario_especial: 'RE', atestado: 'AT', pedido_exame: 'PE', tratamentos_realizados: 'TR' }[tipo]
+  const p = { receituario: 'RS', receituario_especial: 'RE', atestado: 'AT', pedido_exame: 'PE' }[tipo]
   return `${p}-${Date.now().toString().slice(-6)}`
 }
 
@@ -1168,137 +1166,6 @@ function AtestadoForm({ onChange }: { onChange: (d: object) => void }) {
   )
 }
 
-// ─── formulário tratamentos realizados (exame físico e clínico) ──────────────
-
-interface ExameFisico {
-  face: string; atm: string; linfonodos: string; labios: string; mucosa_labial: string
-  mucosa_oral: string; lingua: string; assoalho: string; palato: string; gengiva: string
-  classe_angle: string; overjet: string; overbite: string; dtm_sinais: string; parafuncoes: string
-  lesoes_carie: string; fraturas: string; lesoes_mucosa: string; outras_patologias: string
-}
-
-const EMPTY_EXAME_FISICO: ExameFisico = {
-  face: '', atm: '', linfonodos: '', labios: '', mucosa_labial: '',
-  mucosa_oral: '', lingua: '', assoalho: '', palato: '', gengiva: '',
-  classe_angle: '', overjet: '', overbite: '', dtm_sinais: '', parafuncoes: '',
-  lesoes_carie: '', fraturas: '', lesoes_mucosa: '', outras_patologias: '',
-}
-
-const SECOES_TRATAMENTO = ['Extrabucal', 'Intrabucal', 'Oclusão / DTM', 'Patologias']
-
-function ExameFisicoField({ label, value, onChange, placeholder }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string
-}) {
-  return (
-    <div className="flex items-start gap-3 py-2.5 border-b border-gray-50 last:border-0">
-      <span className="text-xs text-gray-500 w-36 shrink-0 pt-1.5 leading-tight">{label}</span>
-      <input value={value} onChange={e => onChange(e.target.value)}
-        placeholder={placeholder ?? 'Sem alterações'}
-        className="flex-1 text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-    </div>
-  )
-}
-
-function TratamentosForm({ onChange }: { onChange: (d: object) => void }) {
-  const [secao, setSecao] = useState(0)
-  const [fisico, setFisico] = useState<ExameFisico>(EMPTY_EXAME_FISICO)
-
-  function setF<K extends keyof ExameFisico>(key: K, val: string) {
-    const next = { ...fisico, [key]: val }
-    setFisico(next)
-    onChange({ exame_fisico: next })
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex gap-1 overflow-x-auto pb-0.5">
-        {SECOES_TRATAMENTO.map((s, i) => (
-          <button key={s} type="button" onClick={() => setSecao(i)}
-            className={clsx(
-              'px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap border transition-colors shrink-0',
-              secao === i ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-500 hover:border-gray-300'
-            )}>
-            {s}
-          </button>
-        ))}
-      </div>
-
-      {secao === 0 && (
-        <div className="bg-gray-50 rounded-xl px-4 py-2">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 pt-1">Exame Extrabucal</p>
-          <ExameFisicoField label="Face / Assimetria" value={fisico.face} onChange={v => setF('face', v)} />
-          <ExameFisicoField label="ATM" value={fisico.atm} onChange={v => setF('atm', v)} placeholder="Ex: estalo, limitação, dor" />
-          <ExameFisicoField label="Linfonodos" value={fisico.linfonodos} onChange={v => setF('linfonodos', v)} placeholder="Ex: aumentados, dolorosos" />
-          <ExameFisicoField label="Lábios" value={fisico.labios} onChange={v => setF('labios', v)} />
-          <ExameFisicoField label="Mucosa labial" value={fisico.mucosa_labial} onChange={v => setF('mucosa_labial', v)} />
-        </div>
-      )}
-
-      {secao === 1 && (
-        <div className="bg-gray-50 rounded-xl px-4 py-2">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 pt-1">Exame Intrabucal</p>
-          <ExameFisicoField label="Mucosa oral" value={fisico.mucosa_oral} onChange={v => setF('mucosa_oral', v)} />
-          <ExameFisicoField label="Língua / Assoalho" value={fisico.lingua} onChange={v => setF('lingua', v)} />
-          <ExameFisicoField label="Assoalho bucal" value={fisico.assoalho} onChange={v => setF('assoalho', v)} />
-          <ExameFisicoField label="Palato / Orofaringe" value={fisico.palato} onChange={v => setF('palato', v)} />
-          <ExameFisicoField label="Gengiva / Periodonto" value={fisico.gengiva} onChange={v => setF('gengiva', v)} placeholder="Ex: hiperemia, retração, bolsa" />
-        </div>
-      )}
-
-      {secao === 2 && (
-        <div className="space-y-3">
-          <div className="bg-gray-50 rounded-xl px-4 py-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 pt-1">Oclusão</p>
-            <div className="py-2.5 border-b border-gray-100">
-              <p className="text-xs text-gray-500 mb-2">Classe de Angle</p>
-              <div className="flex gap-2 flex-wrap">
-                {['Classe I', 'Classe II div. 1', 'Classe II div. 2', 'Classe III'].map(c => (
-                  <button key={c} type="button" onClick={() => setF('classe_angle', fisico.classe_angle === c ? '' : c)}
-                    className={clsx('px-2.5 py-1 rounded-lg text-xs font-medium border-2 transition-all',
-                      fisico.classe_angle === c ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-500')}>
-                    {c}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <ExameFisicoField label="Overjet (mm)" value={fisico.overjet} onChange={v => setF('overjet', v)} placeholder="Ex: 3mm" />
-            <ExameFisicoField label="Overbite (mm)" value={fisico.overbite} onChange={v => setF('overbite', v)} placeholder="Ex: 2mm" />
-          </div>
-          <div className="bg-gray-50 rounded-xl px-4 py-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 pt-1">DTM / Parafunções</p>
-            <ExameFisicoField label="Sinais de DTM" value={fisico.dtm_sinais} onChange={v => setF('dtm_sinais', v)} placeholder="Ex: estalo, crepitação, trava" />
-            <ExameFisicoField label="Parafunções" value={fisico.parafuncoes} onChange={v => setF('parafuncoes', v)} placeholder="Ex: bruxismo, onicofagia" />
-          </div>
-        </div>
-      )}
-
-      {secao === 3 && (
-        <div className="bg-gray-50 rounded-xl px-4 py-2">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 pt-1">Patologias Observadas</p>
-          <ExameFisicoField label="Lesões de cárie" value={fisico.lesoes_carie} onChange={v => setF('lesoes_carie', v)} placeholder="Ex: dentes 36, 46 — cárie oclusal" />
-          <ExameFisicoField label="Fraturas" value={fisico.fraturas} onChange={v => setF('fraturas', v)} placeholder="Ex: fratura de cúspide dente 16" />
-          <ExameFisicoField label="Lesões em mucosas" value={fisico.lesoes_mucosa} onChange={v => setF('lesoes_mucosa', v)} placeholder="Ex: úlcera, leucoplasia, eritroplasia" />
-          <ExameFisicoField label="Outras patologias" value={fisico.outras_patologias} onChange={v => setF('outras_patologias', v)} />
-        </div>
-      )}
-
-      <div className="flex items-center justify-between pt-1">
-        <button type="button" disabled={secao === 0} onClick={() => setSecao(s => s - 1)}
-          className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-30">← Anterior</button>
-        <div className="flex gap-1">
-          {SECOES_TRATAMENTO.map((_, i) => (
-            <div key={i} onClick={() => setSecao(i)}
-              className={clsx('w-1.5 h-1.5 rounded-full cursor-pointer transition-colors',
-                i === secao ? 'bg-teal-600' : 'bg-gray-300')} />
-          ))}
-        </div>
-        <button type="button" disabled={secao === SECOES_TRATAMENTO.length - 1} onClick={() => setSecao(s => s + 1)}
-          className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-30">Próxima →</button>
-      </div>
-    </div>
-  )
-}
-
 // ─── formulário pedido de exame (exames complementares) ──────────────────────
 
 function PedidoExameForm({ onChange }: { onChange: (d: object) => void }) {
@@ -1518,7 +1385,6 @@ function NovoDocModal({ onClose, onSaved }: { onClose: () => void; onSaved: (d: 
                   <ReceituarioForm especial={tipo === 'receituario_especial'} onChange={setDados} />}
                 {tipo === 'atestado' && <AtestadoForm onChange={setDados} />}
                 {tipo === 'pedido_exame' && <PedidoExameForm onChange={setDados} />}
-                {tipo === 'tratamentos_realizados' && <TratamentosForm onChange={setDados} />}
                 {error && <p className="text-sm text-red-600">{error}</p>}
               </>
             )}

@@ -13,6 +13,7 @@ import { format, parseISO, differenceInYears, formatDistanceToNow } from 'date-f
 import { ptBR } from 'date-fns/locale'
 import { Odontograma, type ToothTratamento } from '@/components/Odontograma/Odontograma'
 import { AnamnesesTab } from './AnamnesesTab'
+import { TratamentosTab } from './TratamentosTab'
 import clsx from 'clsx'
 
 type Tab = 'visao-geral' | 'anamneses' | 'orcamentos' | 'tratamentos' | 'pagamentos' | 'evolucoes' | 'documentos' | 'arquivos'
@@ -348,13 +349,6 @@ export function PacienteDetalhePage({ id }: { id: string }) {
           {/* TRATAMENTOS */}
           {tab === 'tratamentos' && (
             <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-semibold text-gray-800">Tratamentos</h2>
-                <button className="btn-primary">
-                  <Plus size={14} /> Adicionar tratamento
-                </button>
-              </div>
-
               <div className="border border-gray-100 rounded-xl p-4 mb-6">
                 <div className="flex gap-2 mb-4">
                   <button className="px-3 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-lg font-medium">Permanentes</button>
@@ -366,10 +360,7 @@ export function PacienteDetalhePage({ id }: { id: string }) {
                 />
               </div>
 
-              <EmptyState
-                icon={Activity}
-                title="Sem tratamentos por aqui ainda. Vamos adicionar o primeiro?"
-              />
+              <TratamentosTab pacienteId={id} pacienteNome={paciente.nome} />
             </div>
           )}
 
