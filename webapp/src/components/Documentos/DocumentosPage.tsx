@@ -574,13 +574,14 @@ function BuscaPacienteInput({ value, onSelect, onCadastrar }: {
 
 // ─── tipos ────────────────────────────────────────────────────────────────────
 
-type TipoDoc = 'receituario' | 'receituario_especial' | 'atestado' | 'pedido_exame'
+type TipoDoc = 'receituario' | 'receituario_especial' | 'atestado' | 'pedido_exame' | 'tratamentos_realizados'
 
 const TIPOS: { id: TipoDoc; label: string; desc: string; cor: string }[] = [
-  { id: 'receituario',          label: 'Receituário simples',  desc: 'Medicamentos e posologia',          cor: 'bg-blue-50 border-blue-200 text-blue-700' },
-  { id: 'receituario_especial', label: 'Receituário especial', desc: 'Medicamentos controlados (2 vias)', cor: 'bg-purple-50 border-purple-200 text-purple-700' },
-  { id: 'atestado',             label: 'Atestado',             desc: 'Comparecimento ou incapacidade',    cor: 'bg-green-50 border-green-200 text-green-700' },
-  { id: 'pedido_exame',         label: 'Pedido de exame',      desc: 'Raio-X, tomografia, laboratorial',  cor: 'bg-amber-50 border-amber-200 text-amber-700' },
+  { id: 'receituario',            label: 'Receituário simples',    desc: 'Medicamentos e posologia',            cor: 'bg-blue-50 border-blue-200 text-blue-700' },
+  { id: 'receituario_especial',   label: 'Receituário especial',   desc: 'Medicamentos controlados (2 vias)',   cor: 'bg-purple-50 border-purple-200 text-purple-700' },
+  { id: 'atestado',               label: 'Atestado',               desc: 'Comparecimento ou incapacidade',      cor: 'bg-green-50 border-green-200 text-green-700' },
+  { id: 'pedido_exame',           label: 'Pedido de exame',        desc: 'Raio-X, tomografia, laboratorial',    cor: 'bg-amber-50 border-amber-200 text-amber-700' },
+  { id: 'tratamentos_realizados', label: 'Tratamentos realizados', desc: 'Exame clínico e achados bucais',      cor: 'bg-teal-50 border-teal-200 text-teal-700' },
 ]
 
 interface Medicamento { nome: string; posologia: string; indicacao?: string }
@@ -589,16 +590,17 @@ interface DocRow { id: string; tipo: TipoDoc; paciente_nome: string | null; nume
 
 function badgeColor(tipo: TipoDoc) {
   switch (tipo) {
-    case 'receituario':                   return 'bg-blue-50 text-blue-700 border-blue-200'
-    case 'receituario_especial': return 'bg-purple-50 text-purple-700 border-purple-200'
-    case 'atestado':                      return 'bg-green-50 text-green-700 border-green-200'
-    case 'pedido_exame':                  return 'bg-amber-50 text-amber-700 border-amber-200'
+    case 'receituario':            return 'bg-blue-50 text-blue-700 border-blue-200'
+    case 'receituario_especial':   return 'bg-purple-50 text-purple-700 border-purple-200'
+    case 'atestado':               return 'bg-green-50 text-green-700 border-green-200'
+    case 'pedido_exame':           return 'bg-amber-50 text-amber-700 border-amber-200'
+    case 'tratamentos_realizados': return 'bg-teal-50 text-teal-700 border-teal-200'
   }
 }
 
 function tipoLabel(tipo: TipoDoc) { return TIPOS.find(t => t.id === tipo)?.label ?? tipo }
 function gerarNumero(tipo: TipoDoc) {
-  const p = { receituario: 'RS', receituario_especial: 'RE', atestado: 'AT', pedido_exame: 'PE' }[tipo]
+  const p = { receituario: 'RS', receituario_especial: 'RE', atestado: 'AT', pedido_exame: 'PE', tratamentos_realizados: 'TR' }[tipo]
   return `${p}-${Date.now().toString().slice(-6)}`
 }
 
@@ -1166,16 +1168,12 @@ function AtestadoForm({ onChange }: { onChange: (d: object) => void }) {
   )
 }
 
-// ─── formulário pedido de exame / exame físico e clínico ─────────────────────
+// ─── formulário tratamentos realizados (exame físico e clínico) ──────────────
 
 interface ExameFisico {
-  // Extrabucal
   face: string; atm: string; linfonodos: string; labios: string; mucosa_labial: string
-  // Intrabucal
   mucosa_oral: string; lingua: string; assoalho: string; palato: string; gengiva: string
-  // Oclusão/DTM
   classe_angle: string; overjet: string; overbite: string; dtm_sinais: string; parafuncoes: string
-  // Patologias
   lesoes_carie: string; fraturas: string; lesoes_mucosa: string; outras_patologias: string
 }
 
@@ -1186,7 +1184,7 @@ const EMPTY_EXAME_FISICO: ExameFisico = {
   lesoes_carie: '', fraturas: '', lesoes_mucosa: '', outras_patologias: '',
 }
 
-const SECOES_EXAME = ['Extrabucal', 'Intrabucal', 'Oclusão / DTM', 'Patologias', 'Exames Complementares']
+const SECOES_TRATAMENTO = ['Extrabucal', 'Intrabucal', 'Oclusão / DTM', 'Patologias']
 
 function ExameFisicoField({ label, value, onChange, placeholder }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string
@@ -1201,90 +1199,41 @@ function ExameFisicoField({ label, value, onChange, placeholder }: {
   )
 }
 
-function PedidoExameForm({ onChange }: { onChange: (d: object) => void }) {
-  const [secao, setSecao]             = useState(0)
-  const [fisico, setFisico]           = useState<ExameFisico>(EMPTY_EXAME_FISICO)
-  const [aba, setAba]                 = useState(0)
-  const [selecionados, setSelecionados] = useState<ExameSelecionado[]>([])
-  const [livres, setLivres]           = useState<{ titulo: string; descricao: string }[]>([])
-  const [indicacao, setIndicacao]     = useState('')
-  const [urgente, setUrgente]         = useState(false)
+function TratamentosForm({ onChange }: { onChange: (d: object) => void }) {
+  const [secao, setSecao] = useState(0)
+  const [fisico, setFisico] = useState<ExameFisico>(EMPTY_EXAME_FISICO)
 
   function setF<K extends keyof ExameFisico>(key: K, val: string) {
     const next = { ...fisico, [key]: val }
     setFisico(next)
-    emitir(next, selecionados, livres, indicacao, urgente)
+    onChange({ exame_fisico: next })
   }
-
-  function emitir(
-    f = fisico, s = selecionados, l = livres,
-    ind = indicacao, urg = urgente
-  ) {
-    const exames = [
-      ...s.map(e => ({ nome: e.nome, descricao: e.desc })),
-      ...l.filter(e => e.titulo).map(e => ({ nome: e.titulo, descricao: e.descricao })),
-    ]
-    onChange({ exame_fisico: f, exames, indicacao: ind, urgente: urg })
-  }
-
-  function toggleExame(nome: string, desc: string) {
-    const existe = selecionados.find(e => e.nome === nome)
-    const next = existe ? selecionados.filter(e => e.nome !== nome) : [...selecionados, { nome, desc }]
-    setSelecionados(next); emitir(fisico, next)
-  }
-
-  function setDescricao(nome: string, val: string) {
-    const next = selecionados.map(e => e.nome === nome ? { ...e, desc: val } : e)
-    setSelecionados(next); emitir(fisico, next)
-  }
-
-  function addLivre() {
-    const next = [...livres, { titulo: '', descricao: '' }]
-    setLivres(next); emitir(fisico, selecionados, next)
-  }
-  function setLivre(i: number, field: 'titulo' | 'descricao', val: string) {
-    const next = livres.map((l, idx) => idx === i ? { ...l, [field]: val } : l)
-    setLivres(next); emitir(fisico, selecionados, next)
-  }
-  function removeLivre(i: number) {
-    const next = livres.filter((_, idx) => idx !== i)
-    setLivres(next); emitir(fisico, selecionados, next)
-  }
-
-  const totalExames = selecionados.length + livres.filter(l => l.titulo).length
 
   return (
     <div className="space-y-4">
-      {/* Navegação entre seções */}
       <div className="flex gap-1 overflow-x-auto pb-0.5">
-        {SECOES_EXAME.map((s, i) => (
+        {SECOES_TRATAMENTO.map((s, i) => (
           <button key={s} type="button" onClick={() => setSecao(i)}
             className={clsx(
               'px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap border transition-colors shrink-0',
-              secao === i
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'border-gray-200 text-gray-500 hover:border-gray-300'
+              secao === i ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-500 hover:border-gray-300'
             )}>
-            {i === 4 && totalExames > 0 ? `${s} (${totalExames})` : s}
+            {s}
           </button>
         ))}
       </div>
 
-      {/* ── Seção 0: Exame Extrabucal ─────────────────────── */}
       {secao === 0 && (
         <div className="bg-gray-50 rounded-xl px-4 py-2">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 pt-1">Exame Extrabucal</p>
           <ExameFisicoField label="Face / Assimetria" value={fisico.face} onChange={v => setF('face', v)} />
-          <ExameFisicoField label="ATM" value={fisico.atm} onChange={v => setF('atm', v)}
-            placeholder="Ex: estalo, limitação, dor" />
-          <ExameFisicoField label="Linfonodos" value={fisico.linfonodos} onChange={v => setF('linfonodos', v)}
-            placeholder="Ex: aumentados, dolorosos" />
+          <ExameFisicoField label="ATM" value={fisico.atm} onChange={v => setF('atm', v)} placeholder="Ex: estalo, limitação, dor" />
+          <ExameFisicoField label="Linfonodos" value={fisico.linfonodos} onChange={v => setF('linfonodos', v)} placeholder="Ex: aumentados, dolorosos" />
           <ExameFisicoField label="Lábios" value={fisico.labios} onChange={v => setF('labios', v)} />
           <ExameFisicoField label="Mucosa labial" value={fisico.mucosa_labial} onChange={v => setF('mucosa_labial', v)} />
         </div>
       )}
 
-      {/* ── Seção 1: Exame Intrabucal ─────────────────────── */}
       {secao === 1 && (
         <div className="bg-gray-50 rounded-xl px-4 py-2">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 pt-1">Exame Intrabucal</p>
@@ -1292,25 +1241,21 @@ function PedidoExameForm({ onChange }: { onChange: (d: object) => void }) {
           <ExameFisicoField label="Língua / Assoalho" value={fisico.lingua} onChange={v => setF('lingua', v)} />
           <ExameFisicoField label="Assoalho bucal" value={fisico.assoalho} onChange={v => setF('assoalho', v)} />
           <ExameFisicoField label="Palato / Orofaringe" value={fisico.palato} onChange={v => setF('palato', v)} />
-          <ExameFisicoField label="Gengiva / Periodonto" value={fisico.gengiva} onChange={v => setF('gengiva', v)}
-            placeholder="Ex: hiperemia, retração, bolsa" />
+          <ExameFisicoField label="Gengiva / Periodonto" value={fisico.gengiva} onChange={v => setF('gengiva', v)} placeholder="Ex: hiperemia, retração, bolsa" />
         </div>
       )}
 
-      {/* ── Seção 2: Oclusão / DTM ───────────────────────── */}
       {secao === 2 && (
         <div className="space-y-3">
           <div className="bg-gray-50 rounded-xl px-4 py-2">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 pt-1">Oclusão</p>
             <div className="py-2.5 border-b border-gray-100">
               <p className="text-xs text-gray-500 mb-2">Classe de Angle</p>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {['Classe I', 'Classe II div. 1', 'Classe II div. 2', 'Classe III'].map(c => (
                   <button key={c} type="button" onClick={() => setF('classe_angle', fisico.classe_angle === c ? '' : c)}
                     className={clsx('px-2.5 py-1 rounded-lg text-xs font-medium border-2 transition-all',
-                      fisico.classe_angle === c
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 text-gray-500')}>
+                      fisico.classe_angle === c ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-500')}>
                     {c}
                   </button>
                 ))}
@@ -1321,137 +1266,169 @@ function PedidoExameForm({ onChange }: { onChange: (d: object) => void }) {
           </div>
           <div className="bg-gray-50 rounded-xl px-4 py-2">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 pt-1">DTM / Parafunções</p>
-            <ExameFisicoField label="Sinais de DTM" value={fisico.dtm_sinais} onChange={v => setF('dtm_sinais', v)}
-              placeholder="Ex: estalo, crepitação, trava" />
-            <ExameFisicoField label="Parafunções" value={fisico.parafuncoes} onChange={v => setF('parafuncoes', v)}
-              placeholder="Ex: bruxismo, onicofagia" />
+            <ExameFisicoField label="Sinais de DTM" value={fisico.dtm_sinais} onChange={v => setF('dtm_sinais', v)} placeholder="Ex: estalo, crepitação, trava" />
+            <ExameFisicoField label="Parafunções" value={fisico.parafuncoes} onChange={v => setF('parafuncoes', v)} placeholder="Ex: bruxismo, onicofagia" />
           </div>
         </div>
       )}
 
-      {/* ── Seção 3: Patologias ──────────────────────────── */}
       {secao === 3 && (
         <div className="bg-gray-50 rounded-xl px-4 py-2">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 pt-1">Patologias Observadas</p>
-          <ExameFisicoField label="Lesões de cárie" value={fisico.lesoes_carie} onChange={v => setF('lesoes_carie', v)}
-            placeholder="Ex: dentes 36, 46 — cárie oclusal" />
-          <ExameFisicoField label="Fraturas" value={fisico.fraturas} onChange={v => setF('fraturas', v)}
-            placeholder="Ex: fratura de cúspide dente 16" />
-          <ExameFisicoField label="Lesões em mucosas" value={fisico.lesoes_mucosa} onChange={v => setF('lesoes_mucosa', v)}
-            placeholder="Ex: úlcera, leucoplasia, eritroplasia" />
+          <ExameFisicoField label="Lesões de cárie" value={fisico.lesoes_carie} onChange={v => setF('lesoes_carie', v)} placeholder="Ex: dentes 36, 46 — cárie oclusal" />
+          <ExameFisicoField label="Fraturas" value={fisico.fraturas} onChange={v => setF('fraturas', v)} placeholder="Ex: fratura de cúspide dente 16" />
+          <ExameFisicoField label="Lesões em mucosas" value={fisico.lesoes_mucosa} onChange={v => setF('lesoes_mucosa', v)} placeholder="Ex: úlcera, leucoplasia, eritroplasia" />
           <ExameFisicoField label="Outras patologias" value={fisico.outras_patologias} onChange={v => setF('outras_patologias', v)} />
         </div>
       )}
 
-      {/* ── Seção 4: Exames Complementares ──────────────── */}
-      {secao === 4 && (
-        <div className="space-y-4">
-          <div>
-            <label className="label">Selecione os exames solicitados</label>
-            <div className="flex flex-wrap gap-1 mb-3">
-              {[...CATEGORIAS_EXAME.map(c => c.nome), 'Personalizado'].map((nome, i) => (
-                <button key={nome} type="button" onClick={() => setAba(i)}
-                  className={clsx('px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors',
-                    aba === i ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-500 hover:border-gray-300')}>
-                  {nome}
-                </button>
-              ))}
-            </div>
+      <div className="flex items-center justify-between pt-1">
+        <button type="button" disabled={secao === 0} onClick={() => setSecao(s => s - 1)}
+          className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-30">← Anterior</button>
+        <div className="flex gap-1">
+          {SECOES_TRATAMENTO.map((_, i) => (
+            <div key={i} onClick={() => setSecao(i)}
+              className={clsx('w-1.5 h-1.5 rounded-full cursor-pointer transition-colors',
+                i === secao ? 'bg-teal-600' : 'bg-gray-300')} />
+          ))}
+        </div>
+        <button type="button" disabled={secao === SECOES_TRATAMENTO.length - 1} onClick={() => setSecao(s => s + 1)}
+          className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-30">Próxima →</button>
+      </div>
+    </div>
+  )
+}
 
-            {aba < CATEGORIAS_EXAME.length && (
-              <div className="space-y-1.5">
-                {CATEGORIAS_EXAME[aba].exames.map(exame => {
-                  const sel = selecionados.find(e => e.nome === exame.nome)
-                  return (
-                    <div key={exame.nome} className="space-y-1">
-                      <label className={clsx('flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors',
-                        sel ? 'bg-blue-50 border-blue-200' : 'border-gray-100 hover:border-gray-200')}>
-                        <div onClick={() => toggleExame(exame.nome, exame.desc)}
-                          className={clsx('w-5 h-5 rounded flex items-center justify-center border-2 shrink-0 transition-colors',
-                            sel ? 'bg-blue-600 border-blue-600' : 'border-gray-300')}>
-                          {sel && <Check size={12} className="text-white" />}
-                        </div>
-                        <span className="text-sm text-gray-800 flex-1" onClick={() => toggleExame(exame.nome, exame.desc)}>
-                          {exame.nome}
-                        </span>
-                      </label>
-                      {sel && exame.desc && (
-                        <input className="input text-sm ml-8" placeholder={`Detalhe: ${exame.desc}`}
-                          value={sel.desc} onChange={e => setDescricao(exame.nome, e.target.value)} />
-                      )}
+// ─── formulário pedido de exame (exames complementares) ──────────────────────
+
+function PedidoExameForm({ onChange }: { onChange: (d: object) => void }) {
+  const [aba, setAba]                   = useState(0)
+  const [selecionados, setSelecionados] = useState<ExameSelecionado[]>([])
+  const [livres, setLivres]             = useState<{ titulo: string; descricao: string }[]>([])
+  const [indicacao, setIndicacao]       = useState('')
+  const [urgente, setUrgente]           = useState(false)
+
+  function emitir(s = selecionados, l = livres, ind = indicacao, urg = urgente) {
+    const exames = [
+      ...s.map(e => ({ nome: e.nome, descricao: e.desc })),
+      ...l.filter(e => e.titulo).map(e => ({ nome: e.titulo, descricao: e.descricao })),
+    ]
+    onChange({ exames, indicacao: ind, urgente: urg })
+  }
+
+  function toggleExame(nome: string, desc: string) {
+    const existe = selecionados.find(e => e.nome === nome)
+    const next = existe ? selecionados.filter(e => e.nome !== nome) : [...selecionados, { nome, desc }]
+    setSelecionados(next); emitir(next)
+  }
+
+  function setDescricao(nome: string, val: string) {
+    const next = selecionados.map(e => e.nome === nome ? { ...e, desc: val } : e)
+    setSelecionados(next); emitir(next)
+  }
+
+  function addLivre() {
+    const next = [...livres, { titulo: '', descricao: '' }]
+    setLivres(next); emitir(selecionados, next)
+  }
+  function setLivre(i: number, field: 'titulo' | 'descricao', val: string) {
+    const next = livres.map((l, idx) => idx === i ? { ...l, [field]: val } : l)
+    setLivres(next); emitir(selecionados, next)
+  }
+  function removeLivre(i: number) {
+    const next = livres.filter((_, idx) => idx !== i)
+    setLivres(next); emitir(selecionados, next)
+  }
+
+  const totalExames = selecionados.length + livres.filter(l => l.titulo).length
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="label">Selecione os exames solicitados</label>
+        <div className="flex flex-wrap gap-1 mb-3">
+          {[...CATEGORIAS_EXAME.map(c => c.nome), 'Personalizado'].map((nome, i) => (
+            <button key={nome} type="button" onClick={() => setAba(i)}
+              className={clsx('px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors',
+                aba === i ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-500 hover:border-gray-300')}>
+              {nome}
+            </button>
+          ))}
+        </div>
+
+        {aba < CATEGORIAS_EXAME.length && (
+          <div className="space-y-1.5">
+            {CATEGORIAS_EXAME[aba].exames.map(exame => {
+              const sel = selecionados.find(e => e.nome === exame.nome)
+              return (
+                <div key={exame.nome} className="space-y-1">
+                  <label className={clsx('flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors',
+                    sel ? 'bg-blue-50 border-blue-200' : 'border-gray-100 hover:border-gray-200')}>
+                    <div onClick={() => toggleExame(exame.nome, exame.desc)}
+                      className={clsx('w-5 h-5 rounded flex items-center justify-center border-2 shrink-0 transition-colors',
+                        sel ? 'bg-blue-600 border-blue-600' : 'border-gray-300')}>
+                      {sel && <Check size={12} className="text-white" />}
                     </div>
-                  )
-                })}
-              </div>
-            )}
-
-            {aba === CATEGORIAS_EXAME.length && (
-              <div className="space-y-2">
-                {livres.map((l, i) => (
-                  <div key={i} className="border border-gray-100 rounded-xl p-3 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <input className="input flex-1 text-sm" placeholder="Nome do exame" value={l.titulo}
-                        onChange={e => setLivre(i, 'titulo', e.target.value)} />
-                      <button type="button" onClick={() => removeLivre(i)} className="p-1 text-gray-300 hover:text-red-500 rounded">
-                        <X size={14} />
-                      </button>
-                    </div>
-                    <textarea className="input w-full text-sm resize-none" rows={2}
-                      placeholder="Região anatômica / detalhes..." value={l.descricao}
-                      onChange={e => setLivre(i, 'descricao', e.target.value)} />
-                  </div>
-                ))}
-                <button type="button" onClick={addLivre} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                  <Plus size={12} /> Adicionar exame personalizado
-                </button>
-              </div>
-            )}
+                    <span className="text-sm text-gray-800 flex-1" onClick={() => toggleExame(exame.nome, exame.desc)}>
+                      {exame.nome}
+                    </span>
+                  </label>
+                  {sel && exame.desc && (
+                    <input className="input text-sm ml-8" placeholder={`Detalhe: ${exame.desc}`}
+                      value={sel.desc} onChange={e => setDescricao(exame.nome, e.target.value)} />
+                  )}
+                </div>
+              )
+            })}
           </div>
+        )}
 
-          {totalExames > 0 && (
-            <div className="bg-blue-50 rounded-xl px-4 py-3">
-              <p className="text-xs font-semibold text-blue-700 mb-1.5">{totalExames} exame(s) solicitado(s)</p>
-              <ul className="space-y-0.5">
-                {selecionados.map(e => <li key={e.nome} className="text-xs text-blue-600">• {e.nome}{e.desc ? ` — ${e.desc}` : ''}</li>)}
-                {livres.filter(l => l.titulo).map((l, i) => <li key={i} className="text-xs text-blue-600">• {l.titulo}</li>)}
-              </ul>
-            </div>
-          )}
-
-          <div>
-            <label className="label">Indicação clínica / Hipótese diagnóstica</label>
-            <textarea className="input w-full resize-none text-sm" rows={3}
-              placeholder="Descreva a indicação clínica e hipótese diagnóstica para os exames solicitados..."
-              value={indicacao}
-              onChange={e => { setIndicacao(e.target.value); emitir(fisico, selecionados, livres, e.target.value) }} />
+        {aba === CATEGORIAS_EXAME.length && (
+          <div className="space-y-2">
+            {livres.map((l, i) => (
+              <div key={i} className="border border-gray-100 rounded-xl p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input className="input flex-1 text-sm" placeholder="Nome do exame" value={l.titulo}
+                    onChange={e => setLivre(i, 'titulo', e.target.value)} />
+                  <button type="button" onClick={() => removeLivre(i)} className="p-1 text-gray-300 hover:text-red-500 rounded">
+                    <X size={14} />
+                  </button>
+                </div>
+                <textarea className="input w-full text-sm resize-none" rows={2}
+                  placeholder="Região anatômica / detalhes..." value={l.descricao}
+                  onChange={e => setLivre(i, 'descricao', e.target.value)} />
+              </div>
+            ))}
+            <button type="button" onClick={addLivre} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+              <Plus size={12} /> Adicionar exame personalizado
+            </button>
           </div>
+        )}
+      </div>
 
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={urgente} className="accent-blue-600"
-              onChange={e => { setUrgente(e.target.checked); emitir(fisico, selecionados, livres, indicacao, e.target.checked) }} />
-            <span className="text-sm font-medium text-gray-700">Marcar como urgente</span>
-          </label>
+      {totalExames > 0 && (
+        <div className="bg-blue-50 rounded-xl px-4 py-3">
+          <p className="text-xs font-semibold text-blue-700 mb-1.5">{totalExames} exame(s) solicitado(s)</p>
+          <ul className="space-y-0.5">
+            {selecionados.map(e => <li key={e.nome} className="text-xs text-blue-600">• {e.nome}{e.desc ? ` — ${e.desc}` : ''}</li>)}
+            {livres.filter(l => l.titulo).map((l, i) => <li key={i} className="text-xs text-blue-600">• {l.titulo}</li>)}
+          </ul>
         </div>
       )}
 
-      {/* Barra de navegação entre seções */}
-      <div className="flex items-center justify-between pt-1">
-        <button type="button" disabled={secao === 0} onClick={() => setSecao(s => s - 1)}
-          className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-30 flex items-center gap-1">
-          ← Anterior
-        </button>
-        <div className="flex gap-1">
-          {SECOES_EXAME.map((_, i) => (
-            <div key={i} onClick={() => setSecao(i)}
-              className={clsx('w-1.5 h-1.5 rounded-full cursor-pointer transition-colors',
-                i === secao ? 'bg-blue-600' : 'bg-gray-300')} />
-          ))}
-        </div>
-        <button type="button" disabled={secao === SECOES_EXAME.length - 1} onClick={() => setSecao(s => s + 1)}
-          className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-30 flex items-center gap-1">
-          Próxima →
-        </button>
+      <div>
+        <label className="label">Indicação clínica / Hipótese diagnóstica</label>
+        <textarea className="input w-full resize-none text-sm" rows={3}
+          placeholder="Descreva a indicação clínica e hipótese diagnóstica para os exames solicitados..."
+          value={indicacao}
+          onChange={e => { setIndicacao(e.target.value); emitir(selecionados, livres, e.target.value) }} />
       </div>
+
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" checked={urgente} className="accent-blue-600"
+          onChange={e => { setUrgente(e.target.checked); emitir(selecionados, livres, indicacao, e.target.checked) }} />
+        <span className="text-sm font-medium text-gray-700">Marcar como urgente</span>
+      </label>
     </div>
   )
 }
@@ -1541,6 +1518,7 @@ function NovoDocModal({ onClose, onSaved }: { onClose: () => void; onSaved: (d: 
                   <ReceituarioForm especial={tipo === 'receituario_especial'} onChange={setDados} />}
                 {tipo === 'atestado' && <AtestadoForm onChange={setDados} />}
                 {tipo === 'pedido_exame' && <PedidoExameForm onChange={setDados} />}
+                {tipo === 'tratamentos_realizados' && <TratamentosForm onChange={setDados} />}
                 {error && <p className="text-sm text-red-600">{error}</p>}
               </>
             )}
