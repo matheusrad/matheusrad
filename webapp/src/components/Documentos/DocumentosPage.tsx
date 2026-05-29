@@ -9,25 +9,341 @@ import { useRouter } from 'next/navigation'
 
 // ─── banco de medicamentos ────────────────────────────────────────────────────
 
-const MEDICAMENTOS: { nome: string; posologia: string; controlado?: boolean }[] = [
-  { nome: 'Amoxicilina 500mg',                    posologia: '1 cápsula de 8 em 8 horas por 7 dias' },
-  { nome: 'Amoxicilina 875mg + Clavulanato 125mg', posologia: '1 comprimido de 12 em 12 horas por 7 dias' },
-  { nome: 'Azitromicina 500mg',                   posologia: '1 comprimido 1 vez ao dia por 3 dias' },
-  { nome: 'Cefalexina 500mg',                     posologia: '1 cápsula de 6 em 6 horas por 7 dias' },
-  { nome: 'Clindamicina 300mg',                   posologia: '1 cápsula de 8 em 8 horas por 7 dias' },
-  { nome: 'Metronidazol 400mg',                   posologia: '1 comprimido de 8 em 8 horas por 7 dias' },
-  { nome: 'Nimesulida 100mg',                     posologia: '1 comprimido de 12 em 12 horas por 3 a 5 dias (após as refeições)' },
-  { nome: 'Ibuprofeno 600mg',                     posologia: '1 comprimido de 8 em 8 horas por 3 a 5 dias (após as refeições)' },
-  { nome: 'Dipirona 500mg',                       posologia: '1 a 2 comprimidos de 6 em 6 horas se dor (máx. 4 doses/dia)' },
-  { nome: 'Paracetamol 750mg',                    posologia: '1 comprimido de 6 em 6 horas se dor (máx. 4 doses/dia)' },
-  { nome: 'Dexametasona 4mg',                     posologia: '1 comprimido de 12 em 12 horas por 2 dias, iniciando no dia da cirurgia' },
-  { nome: 'Betametasona 0,5mg',                   posologia: '1 comprimido de 12 em 12 horas por 3 dias' },
-  { nome: 'Clorexidina 0,12% (solução)',           posologia: 'Bochecho de 15ml por 30 segundos de 12 em 12 horas por 10 dias' },
-  { nome: 'Nistatina suspensão oral 100.000UI/mL', posologia: '1mL (pingue sobre a lesão) 4 vezes ao dia por 10 dias' },
-  { nome: 'Tramadol 50mg',                        posologia: '1 cápsula de 6 em 6 horas se dor intensa', controlado: true },
-  { nome: 'Codeína 30mg + Paracetamol 500mg',     posologia: '1 comprimido de 6 em 6 horas se dor', controlado: true },
-  { nome: 'Clonazepam 0,5mg',                     posologia: '1 comprimido 1 hora antes do procedimento (uso único)', controlado: true },
-  { nome: 'Midazolam 7,5mg',                      posologia: '1 comprimido 30 minutos antes do procedimento (uso único)', controlado: true },
+const MEDICAMENTOS: { nome: string; posologia: string; indicacao: string; controlado?: boolean }[] = [
+  // ── Analgésicos / Anti-inflamatórios ──
+  {
+    nome: 'Paracetamol 500mg',
+    indicacao: 'Dores leves a moderadas, febre',
+    posologia: '1 comprimido de 6 em 6 horas se dor ou febre (máx. 4 comprimidos/dia). Não exceder 4g/dia.',
+  },
+  {
+    nome: 'Paracetamol 750mg',
+    indicacao: 'Dores leves a moderadas, febre',
+    posologia: '1 comprimido de 6 em 6 horas se dor ou febre (máx. 4 comprimidos/dia). Não exceder 3g/dia.',
+  },
+  {
+    nome: 'Dipirona 500mg',
+    indicacao: 'Dor moderada e febre',
+    posologia: '1 a 2 comprimidos de 6 em 6 horas se dor ou febre (máx. 4 doses/dia). Pode ser tomado com ou sem alimento.',
+  },
+  {
+    nome: 'Ácido Acetilsalicílico (AAS) 500mg',
+    indicacao: 'Cefaleia, odontalgia, febre',
+    posologia: '1 a 2 comprimidos de 4 em 4 a 8 em 8 horas se dor. Tomar após refeições ou com leite para reduzir irritação gástrica.',
+  },
+  {
+    nome: 'Ácido Mefenâmico 500mg',
+    indicacao: 'Dor intensa, dor muscular, dor traumática odontológica',
+    posologia: '1 comprimido de 8 em 8 horas. Tomar com alimento ou leite. Não usar por mais de 7 dias.',
+  },
+  {
+    nome: 'Ibuprofeno 400mg',
+    indicacao: 'Dor, febre, inflamação',
+    posologia: '1 comprimido de 6 em 6 horas ou de 8 em 8 horas. Tomar sempre após refeições.',
+  },
+  {
+    nome: 'Ibuprofeno 600mg',
+    indicacao: 'Dor e inflamação moderada a intensa, pós-operatório',
+    posologia: '1 comprimido de 8 em 8 horas. Tomar sempre após refeições. Não usar por mais de 5 dias sem orientação.',
+  },
+  {
+    nome: 'Nimesulida 100mg',
+    indicacao: 'Dor, febre e inflamação (urgências odontológicas)',
+    posologia: '1 comprimido de 12 em 12 horas por até 3 dias. Tomar após as refeições.',
+  },
+  {
+    nome: 'Diclofenaco Potássico 50mg',
+    indicacao: 'Dor e inflamação aguda e pós-cirúrgica',
+    posologia: '1 comprimido de 8 em 8 horas ou de 12 em 12 horas. Tomar com alimento para reduzir irritação gástrica.',
+  },
+  {
+    nome: 'Naproxeno 250mg',
+    indicacao: 'Estados dolorosos agudos com inflamação',
+    posologia: '1 comprimido de 12 em 12 horas ou 1 vez ao dia. Tomar após refeições.',
+  },
+  {
+    nome: 'Piroxicam 20mg',
+    indicacao: 'Dor e inflamação aguda, pós-operatória e pós-traumática',
+    posologia: '1 comprimido 1 vez ao dia (preferencialmente pela manhã com alimento). Uso máximo de 14 dias.',
+  },
+  {
+    nome: 'Cetoprofeno 50mg',
+    indicacao: 'Dor, inflamação, lesões traumáticas',
+    posologia: '2 cápsulas de 12 em 12 horas. Tomar com alimento.',
+  },
+  {
+    nome: 'Meloxicam 15mg',
+    indicacao: 'Artrite reumatoide, osteoartrites, disfunção de ATM',
+    posologia: '1 comprimido 1 vez ao dia pela manhã com alimento.',
+  },
+  {
+    nome: 'Celecoxibe 200mg',
+    indicacao: 'Dor e inflamação, menor risco gastrointestinal',
+    posologia: '1 cápsula de 12 em 12 horas. Pode ser tomado com ou sem alimento.',
+  },
+  {
+    nome: 'Etoricoxibe 90mg',
+    indicacao: 'Dor aguda, pós-cirúrgico odontológico',
+    posologia: '1 comprimido 1 vez ao dia. Uso máximo de 3 dias em pós-cirúrgico. Tomar com ou sem alimento.',
+  },
+  {
+    nome: 'Etoricoxibe 60mg',
+    indicacao: 'Dor crônica, artrite',
+    posologia: '1 comprimido 1 vez ao dia (uso crônico sob supervisão). Tomar com ou sem alimento.',
+  },
+  {
+    nome: 'Tenoxicam 20mg',
+    indicacao: 'Dor pós-cirúrgica, artrite',
+    posologia: '1 comprimido 1 vez ao dia pela manhã, com alimento.',
+  },
+  {
+    nome: 'Etodolaco 300mg',
+    indicacao: 'Dor e inflamação',
+    posologia: '1 comprimido de 6 em 6 a 8 em 8 horas (máx. 1000mg/dia). Tomar com alimento.',
+  },
+  // ── Opioides / Controlados dor ──
+  {
+    nome: 'Paracetamol 500mg + Fosfato de Codeína 7,5mg',
+    indicacao: 'Dor leve a moderada',
+    posologia: '1 comprimido a cada 4 horas se dor (máx. 6 comprimidos/dia). Não ingerir bebidas alcoólicas.',
+    controlado: true,
+  },
+  {
+    nome: 'Paracetamol 500mg + Fosfato de Codeína 30mg',
+    indicacao: 'Dor moderada a intensa — pós-operatório, pós-extração, pulpite irreversível',
+    posologia: '1 comprimido a cada 4 horas se dor (máx. 6 comprimidos/dia). Não dirigir veículos. Não ingerir álcool.',
+    controlado: true,
+  },
+  {
+    nome: 'Cloridrato de Tramadol 50mg',
+    indicacao: 'DTM, neuralgia do trigêmeo, dores neuropáticas, pulpites avançadas',
+    posologia: '1 cápsula de 6 em 6 horas por 3 dias (máx. 400mg/dia). Não ingerir álcool. Pode causar sonolência — não dirigir.',
+    controlado: true,
+  },
+  // ── Antidepressivos / Neuropáticos (controlados) ──
+  {
+    nome: 'Amitriptilina 25mg',
+    indicacao: 'Dor crônica, fibromialgia, dor neuropática, DTM, cefaleia, enxaqueca, síndrome de ardência bucal',
+    posologia: 'Dose inicial: ½ comprimido (12,5mg) ao deitar. Aumentar gradualmente conforme orientação médica/odontológica. Não interromper bruscamente.',
+    controlado: true,
+  },
+  {
+    nome: 'Nortriptilina 25mg',
+    indicacao: 'DTM, dor neuropática crônica',
+    posologia: '1 cápsula de 8 em 8 horas (25mg 3 vezes ao dia). Tomar preferencialmente à noite. Não interromper bruscamente.',
+    controlado: true,
+  },
+  {
+    nome: 'Carbamazepina 200mg',
+    indicacao: 'Neuralgia do trigêmeo, neuralgia glossofaríngea, neuropatia diabética',
+    posologia: 'Dose inicial: 1 comprimido 2 vezes ao dia. Aumentar gradualmente sob supervisão até controle da dor (máx. 1200mg/dia). Tomar com alimento.',
+    controlado: true,
+  },
+  // ── Corticosteroides sistêmicos ──
+  {
+    nome: 'Dexametasona 4mg',
+    indicacao: 'Edema pós-cirúrgico, processos inflamatórios odontológicos',
+    posologia: '1 comprimido de 12 em 12 horas por 2 a 3 dias, iniciando no dia da cirurgia (pela manhã). Tomar com alimento.',
+  },
+  {
+    nome: 'Betametasona 0,5mg',
+    indicacao: 'Edema e inflamação pós-operatória',
+    posologia: '1 comprimido de 12 em 12 horas por 3 dias. Tomar com alimento.',
+  },
+  {
+    nome: 'Prednisona 20mg',
+    indicacao: 'Doenças inflamatórias, autoimunes, reações alérgicas graves',
+    posologia: '1 a 3 comprimidos 1 vez ao dia pela manhã (dose conforme prescrição). Tomar com alimento. Não interromper bruscamente.',
+  },
+  {
+    nome: 'Prednisolona 20mg',
+    indicacao: 'Processos inflamatórios e autoimunes orais',
+    posologia: '1 a 3 comprimidos 1 vez ao dia às 8h (dose conforme prescrição). Pré-cirúrgico: 1 hora antes do procedimento por 3 a 5 dias. Tomar com alimento.',
+  },
+  // ── Corticosteroides tópicos bucais ──
+  {
+    nome: 'Triancinolona Acetonida (Omcilon-A em Orabase)',
+    indicacao: 'Aftas, úlceras traumáticas orais, estomatite aftosa recorrente',
+    posologia: 'Aplicar camada fina sobre a lesão com cotonete de 2 a 4 vezes ao dia, inclusive ao deitar. Não ingerir alimento imediatamente após aplicação.',
+  },
+  {
+    nome: 'Propionato de Clobetazol 0,05% gel',
+    indicacao: 'Líquen plano erosivo, pênfigo vulgar, penfigóide oral',
+    posologia: 'Aplicar quantidade mínima sobre a lesão 1 a 2 vezes ao dia. Solução para bochecho: bochechar 10mL por 3 minutos e cuspir.',
+  },
+  {
+    nome: 'Dexametasona Elixir 0,1mg/mL',
+    indicacao: 'Feridas cirúrgicas, lesões maxilomandibulares, úlceras aftosas recorrentes',
+    posologia: 'Bochechar 1 colher de sopa (15mL) por 2 minutos de 4 a 8 vezes ao dia e cuspir. Não engolir.',
+  },
+  {
+    nome: 'Betametasona Elixir 0,1mg/mL',
+    indicacao: 'Feridas cirúrgicas, lesões maxilomandibulares, úlceras aftosas recorrentes',
+    posologia: 'Bochechar 1 colher de sopa diluído em 1 colher de água de 4 vezes ao dia e cuspir. Não engolir.',
+  },
+  {
+    nome: 'Hidrocortisona Pomada 1%',
+    indicacao: 'Inflamação e prurido em dermatoses labiais',
+    posologia: 'Aplicar uma camada fina sobre a região afetada de 3 a 4 vezes ao dia.',
+  },
+  // ── Antibióticos ──
+  {
+    nome: 'Amoxicilina 500mg',
+    indicacao: 'Infecções bucais bacterianas, abscessos, profilaxia antibiótica',
+    posologia: '1 cápsula de 8 em 8 horas por 7 a 10 dias. Profilaxia: 2g (4 cápsulas) dose única 1 hora antes do procedimento. Tomar com ou sem alimento.',
+  },
+  {
+    nome: 'Amoxicilina 875mg + Ácido Clavulânico 125mg',
+    indicacao: 'Infecções dentárias refratárias, lesões periapicais com resistência bacteriana',
+    posologia: '1 comprimido de 8 em 8 horas por 7 dias. Tomar com alimento para reduzir desconforto gástrico.',
+  },
+  {
+    nome: 'Azitromicina 500mg',
+    indicacao: 'Abscessos periapicais em pacientes alérgicos à penicilina',
+    posologia: '1 comprimido 1 vez ao dia por 3 dias. Pode ser tomado com ou sem alimento.',
+  },
+  {
+    nome: 'Cefalexina 500mg',
+    indicacao: 'Infecções dentárias bacterianas, profilaxia antibiótica',
+    posologia: '1 cápsula de 6 em 6 horas por 7 a 10 dias. Profilaxia: 2g (4 cápsulas) dose única 1 hora antes do procedimento. Tomar com alimento.',
+  },
+  {
+    nome: 'Clindamicina 300mg',
+    indicacao: 'Infecções dentárias incluindo abscessos, periodontite (alternativo para alérgicos à penicilina)',
+    posologia: '1 cápsula de 8 em 8 horas ou de 12 em 12 horas por 7 a 10 dias. Tomar com copo cheio de água e permanecer em posição ereta por 30 min após.',
+  },
+  {
+    nome: 'Metronidazol 250mg',
+    indicacao: 'Infecções bacterianas bucais anaeróbicas, periodontite',
+    posologia: '1 comprimido de 8 em 8 horas por 7 a 10 dias. NÃO ingerir bebidas alcoólicas durante e por 48 horas após o tratamento.',
+  },
+  {
+    nome: 'Metronidazol 400mg',
+    indicacao: 'Infecções bacterianas bucais anaeróbicas, periodontite',
+    posologia: '1 comprimido de 8 em 8 horas por 7 a 10 dias. NÃO ingerir bebidas alcoólicas durante e por 48 horas após o tratamento.',
+  },
+  {
+    nome: 'Tetraciclina 500mg',
+    indicacao: 'Gengivoestomatite por Fusobacterium, periodontite refratária',
+    posologia: '1 comprimido de 6 em 6 horas ou de 12 em 12 horas por 7 a 10 dias. Tomar com copo cheio de água. NÃO ingerir laticínios, antiácidos ou ferro 1 a 2 horas antes ou após a dose.',
+  },
+  // ── Antivirais ──
+  {
+    nome: 'Aciclovir 200mg',
+    indicacao: 'Herpes simplex oral (tratamento de episódios agudos)',
+    posologia: '1 comprimido a cada 4 horas, 5 vezes ao dia (intervalos de vigília) por 5 dias. Iniciar ao primeiro sinal (formigamento, coceira). Beber bastante água.',
+  },
+  {
+    nome: 'Aciclovir Creme 50mg/g (5%)',
+    indicacao: 'Herpes labial (uso tópico)',
+    posologia: 'Aplicar sobre a lesão 5 vezes ao dia (a cada 4 horas) por 4 dias. Iniciar ao primeiro sinal do surto. Não aplicar no interior da boca ou nos olhos.',
+  },
+  {
+    nome: 'Valaciclovir 500mg',
+    indicacao: 'Herpes zoster, herpes simplex recorrente',
+    posologia: 'Herpes zoster: 2 comprimidos (1000mg) 3 vezes ao dia por 7 dias. Herpes simples: 1 comprimido 2 vezes ao dia por 3 a 5 dias. Beber bastante água.',
+  },
+  {
+    nome: 'Fanciclovir 500mg',
+    indicacao: 'Herpes zoster agudo, herpes simplex mucocutâneo',
+    posologia: '1 comprimido de 8 em 8 horas por 7 dias. Tomar com ou sem alimento.',
+  },
+  {
+    nome: 'Penciclovir Creme 1%',
+    indicacao: 'Herpes labial recorrente (uso tópico)',
+    posologia: 'Aplicar sobre a lesão a cada 2 horas durante as horas de vigília por 4 dias. Iniciar ao primeiro sinal do surto.',
+  },
+  // ── Antifúngicos ──
+  {
+    nome: 'Nistatina Suspensão Oral 100.000UI/mL',
+    indicacao: 'Candidose oral (sapinho), candidíase do trato digestivo superior',
+    posologia: 'Adultos: 1 a 6mL, bochechar e engolir 4 vezes ao dia. Manter o líquido na boca o maior tempo possível antes de engolir. Continuar por pelo menos 2 dias após o desaparecimento dos sintomas.',
+  },
+  {
+    nome: 'Miconazol Gel Oral 20mg/g (Daktarin®)',
+    indicacao: 'Candidose orofaríngea, estomatite por Candida',
+    posologia: '½ colher de chá 4 vezes ao dia após as refeições e ao deitar. Aplicar sobre as lesões e manter na boca o maior tempo possível. Continuar por 1 semana após resolução dos sintomas.',
+  },
+  {
+    nome: 'Fluconazol 150mg',
+    indicacao: 'Candidose mucocutânea, candidíase oral em pacientes imunocomprometidos',
+    posologia: '1 cápsula 1 vez ao dia por 7 a 14 dias. Tomar com ou sem alimento.',
+  },
+  {
+    nome: 'Itraconazol 100mg',
+    indicacao: 'Candidose oral, blastomicose, histoplasmose',
+    posologia: '1 cápsula 1 vez ao dia por 15 dias. Tomar logo após refeição principal para melhor absorção.',
+  },
+  {
+    nome: 'Cetoconazol 200mg',
+    indicacao: 'Candidose mucocutânea crônica',
+    posologia: '1 comprimido 1 vez ao dia ou 2 comprimidos 1 vez ao dia até resolução (máx. 4 semanas). Tomar com alimento.',
+  },
+  // ── Antissépticos bucais ──
+  {
+    nome: 'Digluconato de Clorexidina 0,12% (solução)',
+    indicacao: 'Controle de placa e biofilme, antissepsia pré-operatória, coadjuvante no tratamento periodontal',
+    posologia: 'Bochechar 15mL por 1 minuto, 2 vezes ao dia (manhã e noite) após escovação. Não enxaguar com água após o bochecho. Não ingerir.',
+  },
+  {
+    nome: 'Peróxido de Hidrogênio 3% (Água Oxigenada)',
+    indicacao: 'Limpeza e desinfecção de feridas bucais',
+    posologia: 'Gargarejar ou bochechar solução diluída (1 parte água oxigenada + 1 parte água) por 30 segundos, 2 a 3 vezes ao dia. Não engolir.',
+  },
+  // ── Benzodiazepínicos pré-anestésicos (controlados) ──
+  {
+    nome: 'Diazepam 5mg',
+    indicacao: 'Ansiedade, sedação mínima pré-procedimento odontológico',
+    posologia: '1 a 2 comprimidos (5 a 10mg) 1 HORA antes do procedimento (dose única). Não dirigir veículos. Acompanhar com responsável.',
+    controlado: true,
+  },
+  {
+    nome: 'Diazepam 10mg',
+    indicacao: 'Ansiedade intensa, sedação pré-procedimento odontológico',
+    posologia: '1 comprimido (10mg) 1 HORA antes do procedimento (dose única). Não dirigir veículos. Acompanhar com responsável.',
+    controlado: true,
+  },
+  {
+    nome: 'Lorazepam 2mg',
+    indicacao: 'Ansiedade, sedação pré-procedimento (mais seguro em idosos)',
+    posologia: '1 comprimido (2mg) 2 HORAS antes do procedimento (dose única). Efeito dura 2 a 3 horas. Não dirigir veículos. Acompanhar com responsável.',
+    controlado: true,
+  },
+  {
+    nome: 'Alprazolam 1mg',
+    indicacao: 'Sedação mínima pré-procedimento odontológico',
+    posologia: '½ a 1 comprimido (0,5 a 1mg) 45 a 60 MINUTOS antes do procedimento (dose única). Não dirigir veículos. Acompanhar com responsável.',
+    controlado: true,
+  },
+  {
+    nome: 'Midazolam 7,5mg',
+    indicacao: 'Sedação pré-procedimento odontológico',
+    posologia: '1 comprimido (7,5mg) 30 MINUTOS antes do procedimento (dose única). Não dirigir veículos. Acompanhar com responsável.',
+    controlado: true,
+  },
+  {
+    nome: 'Midazolam 15mg',
+    indicacao: 'Sedação pré-procedimento odontológico (dose maior)',
+    posologia: '1 comprimido (15mg) 30 MINUTOS antes do procedimento (dose única). Não dirigir veículos. Acompanhar com responsável.',
+    controlado: true,
+  },
+  // ── Hipossalivação ──
+  {
+    nome: 'Cloridrato de Pilocarpina 5mg',
+    indicacao: 'Xerostomia (boca seca) — radioterapia de cabeça e pescoço, Síndrome de Sjögren',
+    posologia: '1 a 2 comprimidos (5 a 10mg) 3 vezes ao dia, 30 minutos antes das refeições. Tomar com água.',
+  },
+  {
+    nome: 'Saliva Artificial Spray (base de xilitol)',
+    indicacao: 'Alívio sintomático da boca seca (xerostomia)',
+    posologia: 'Aplicar 2 a 3 jatos na boca ao longo do dia sempre que sentir ressecamento, especialmente antes das refeições e ao deitar.',
+  },
+  // ── Controle de sangramento ──
+  {
+    nome: 'Ácido Tranexâmico 250mg',
+    indicacao: 'Prevenção e controle de sangramento pós-cirúrgico, hemofilia (pré e pós-extração)',
+    posologia: '1 a 2 comprimidos de 8 em 8 horas por 3 a 4 dias após o procedimento. Tomar com água. Pacientes com hemofilia: iniciar 2 horas antes da extração.',
+  },
 ]
 
 // ─── banco de exames por categoria ───────────────────────────────────────────
@@ -184,7 +500,7 @@ const TIPOS: { id: TipoDoc; label: string; desc: string; cor: string }[] = [
   { id: 'pedido_exame',                   label: 'Pedido de exame',               desc: 'Raio-X, tomografia, laboratorial',        cor: 'bg-amber-50 border-amber-200 text-amber-700' },
 ]
 
-interface Medicamento { nome: string; posologia: string }
+interface Medicamento { nome: string; posologia: string; indicacao?: string }
 interface ExameSelecionado { nome: string; desc: string }
 interface DocRow { id: string; tipo: TipoDoc; paciente_nome: string | null; numero_documento: string | null; conteudo_texto: string | null; created_at: string }
 
@@ -222,7 +538,7 @@ function MedicamentoInput({ index, med, controlado, onChange, onRemove, showRemo
 
   function select(m: typeof MEDICAMENTOS[0]) {
     setQuery(m.nome)
-    onChange({ nome: m.nome, posologia: m.posologia })
+    onChange({ nome: m.nome, posologia: m.posologia, indicacao: m.indicacao })
     setOpen(false)
   }
 
@@ -245,12 +561,13 @@ function MedicamentoInput({ index, med, controlado, onChange, onRemove, showRemo
             onFocus={() => setOpen(true)}
           />
           {open && filtrados.length > 0 && (
-            <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden">
+            <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden max-h-72 overflow-y-auto">
               {filtrados.map(m => (
                 <button key={m.nome} type="button" onMouseDown={() => select(m)}
                   className="w-full text-left px-3 py-2.5 text-sm hover:bg-blue-50 border-b border-gray-50 last:border-0">
                   <p className="font-medium text-gray-800">{m.nome}</p>
-                  <p className="text-xs text-gray-400 truncate">{m.posologia}</p>
+                  {m.indicacao && <p className="text-xs text-blue-500 truncate">↪ {m.indicacao}</p>}
+                  <p className="text-xs text-gray-400 truncate mt-0.5">{m.posologia}</p>
                 </button>
               ))}
             </div>
@@ -262,12 +579,18 @@ function MedicamentoInput({ index, med, controlado, onChange, onRemove, showRemo
           </button>
         )}
       </div>
+      {med.indicacao && (
+        <div className="ml-7 flex items-start gap-1.5 text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-1.5">
+          <span className="font-semibold shrink-0">Indicação:</span>
+          <span>{med.indicacao}</span>
+        </div>
+      )}
       <textarea
         className="input w-full text-sm resize-none ml-7"
         rows={2}
         placeholder="Posologia: dose, frequência e duração..."
         value={med.posologia}
-        onChange={e => onChange({ nome: med.nome, posologia: e.target.value })}
+        onChange={e => onChange({ nome: med.nome, posologia: e.target.value, indicacao: med.indicacao })}
       />
     </div>
   )

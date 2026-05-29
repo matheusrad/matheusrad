@@ -183,7 +183,7 @@ function Rodape({ clinica }: { clinica: Clinica }) {
 
 function PrintReceituario({ doc, clinica, assinatura, especial }: { doc: DocRow; clinica: Clinica; assinatura: string | null; paciente?: PacienteRow | null; especial?: boolean }) {
   const dados = JSON.parse(doc.conteudo_texto ?? '{}')
-  const meds: { nome: string; posologia: string }[] = dados.medicamentos ?? []
+  const meds: { nome: string; posologia: string; indicacao?: string }[] = dados.medicamentos ?? []
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1">
@@ -199,6 +199,9 @@ function PrintReceituario({ doc, clinica, assinatura, especial }: { doc: DocRow;
           {meds.map((m, i) => (
             <div key={i}>
               <p className="font-semibold text-sm">{i + 1}. {m.nome}</p>
+              {m.indicacao && (
+                <p className="text-xs text-gray-500 ml-4 mt-0.5 italic">Indicação: {m.indicacao}</p>
+              )}
               <p className="text-sm text-gray-700 ml-4 mt-0.5">{m.posologia}</p>
             </div>
           ))}
@@ -350,7 +353,7 @@ const RCE_COR = '#9b2d78'
 
 function ViaRCE({ doc, clinica, assinatura, paciente }: { doc: DocRow; clinica: Clinica; assinatura: string | null; paciente?: PacienteRow | null }) {
   const dados = JSON.parse(doc.conteudo_texto ?? '{}')
-  const meds: { nome: string; posologia: string }[] = dados.medicamentos ?? []
+  const meds: { nome: string; posologia: string; indicacao?: string }[] = dados.medicamentos ?? []
   const c = RCE_COR
 
   const emitenteLinha2 = [clinica.endereco, clinica.numero, clinica.complemento, clinica.bairro].filter(Boolean).join(', ')
@@ -405,6 +408,7 @@ function ViaRCE({ doc, clinica, assinatura, paciente }: { doc: DocRow; clinica: 
         {meds.map((m, i) => (
           <div key={i} style={{ marginBottom: '6px' }}>
             <p style={{ fontWeight: 'bold' }}>{i + 1}. {m.nome}</p>
+            {m.indicacao && <p style={{ marginLeft: '14px', color: '#7a5c8a', fontSize: '10px', fontStyle: 'italic' }}>Indicação: {m.indicacao}</p>}
             <p style={{ marginLeft: '14px', color: '#555' }}>{m.posologia}</p>
           </div>
         ))}
