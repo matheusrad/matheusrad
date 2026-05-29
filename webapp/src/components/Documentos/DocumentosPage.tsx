@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { FileText, Plus, Search, Printer, X, Trash2, ChevronDown, Check, Send, AlertTriangle, AlertCircle, Info, Loader2 } from 'lucide-react'
+import { FileText, Plus, Search, Printer, X, Trash2, ChevronDown, Check, Send, AlertTriangle, AlertCircle, Info, Loader2, BookOpen, ExternalLink } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getRxCUI, verificarInteracoes, type Interacao } from '@/lib/rxnorm'
 import { format, parseISO } from 'date-fns'
@@ -611,6 +611,17 @@ function nomeAnvisa(p: AnvisaProduto): string {
   return partes.join(' ')
 }
 
+// ─── tipo bula ────────────────────────────────────────────────────────────────
+
+interface BulaItem {
+  expediente: string
+  nome: string
+  principioAtivo: string
+  laboratorio: string
+  tipoBula: string
+  urlPdf: string
+}
+
 // ─── autocomplete de medicamento ──────────────────────────────────────────────
 
 function MedicamentoInput({ index, med, controlado, onChange, onRemove, showRemove }: {
@@ -621,7 +632,11 @@ function MedicamentoInput({ index, med, controlado, onChange, onRemove, showRemo
   const [open,         setOpen]         = useState(false)
   const [anvisaLista,  setAnvisaLista]  = useState<AnvisaProduto[]>([])
   const [anvisaLoad,   setAnvisaLoad]   = useState(false)
+  const [bulaAberta,   setBulaAberta]   = useState(false)
+  const [bulaLista,    setBulaLista]    = useState<BulaItem[]>([])
+  const [bulaLoad,     setBulaLoad]     = useState(false)
   const ref      = useRef<HTMLDivElement>(null)
+  const bulaRef  = useRef<HTMLDivElement>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const filtrados = MEDICAMENTOS.filter(m =>
@@ -674,10 +689,30 @@ function MedicamentoInput({ index, med, controlado, onChange, onRemove, showRemo
         setOpen(false)
         setAnvisaLista([])
       }
+      if (bulaRef.current && !bulaRef.current.contains(e.target as Node)) {
+        setBulaAberta(false)
+      }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
+
+  async function abrirBula() {
+    if (bulaAberta) { setBulaAberta(false); return }
+    setBulaAberta(true)
+    if (bulaLista.length > 0) return
+    setBulaLoad(true)
+    try {
+      const nomeBusca = med.nome.split(' ').slice(0, 2).join(' ')
+      const r = await fetch(`/api/bula?nome=${encodeURIComponent(nomeBusca)}`)
+      const d = await r.json()
+      setBulaLista(d.content ?? [])
+    } catch {
+      setBulaLista([])
+    } finally {
+      setBulaLoad(false)
+    }
+  }
 
   const showDropdown = open && (filtrados.length > 0 || anvisaLista.length > 0 || anvisaLoad)
 
@@ -694,6 +729,8 @@ function MedicamentoInput({ index, med, controlado, onChange, onRemove, showRemo
               setQuery(e.target.value)
               onChange({ nome: e.target.value, posologia: med.posologia, indicacao: med.indicacao })
               setOpen(true)
+              setBulaLista([])
+              setBulaAberta(false)
             }}
             onFocus={() => setOpen(true)}
           />
@@ -760,12 +797,90 @@ function MedicamentoInput({ index, med, controlado, onChange, onRemove, showRemo
           </button>
         )}
       </div>
-      {med.indicacao && (
-        <div className="ml-7 flex items-start gap-1.5 text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-1.5">
-          <span className="font-semibold shrink-0">Indicação:</span>
-          <span>{med.indicacao}</span>
-        </div>
-      )}
+
+      {/* indicação + botão bula */}
+      <div className="ml-7 flex items-start gap-2">
+        {med.indicacao && (
+          <div className="flex-1 flex items-start gap-1.5 text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-1.5">
+            <span className="font-semibold shrink-0">Indicação:</span>
+            <span>{med.indicacao}</span>
+          </div>
+        )}
+        {med.nome.length >= 3 && (
+          <div ref={bulaRef} className="relative shrink-0">
+            <button
+              type="button"
+              onClick={abrirBula}
+              className={clsx(
+                'flex items-center gap-1 text-[11px] font-medium px-2.5 py-1.5 rounded-lg border transition-colors',
+                bulaAberta
+                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                  : 'bg-white border-gray-200 text-gray-500 hover:border-indigo-300 hover:text-indigo-600'
+              )}
+            >
+              {bulaLoad ? <Loader2 size={11} className="animate-spin" /> : <BookOpen size={11} />}
+              Bula
+            </button>
+
+            {bulaAberta && (
+              <div className="absolute right-0 top-full mt-1 z-30 w-80 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden">
+                <div className="px-3 py-2 bg-indigo-50 border-b border-indigo-100 flex items-center gap-2">
+                  <BookOpen size={12} className="text-indigo-600" />
+                  <span className="text-xs font-semibold text-indigo-700">Bulas ANVISA — {med.nome.split(' ').slice(0,2).join(' ')}</span>
+                </div>
+
+                {bulaLoad && (
+                  <div className="flex items-center gap-2 px-3 py-4 text-xs text-gray-400">
+                    <Loader2 size={12} className="animate-spin" /> Buscando bulas...
+                  </div>
+                )}
+
+                {!bulaLoad && bulaLista.length === 0 && (
+                  <p className="px-3 py-4 text-xs text-gray-400 text-center">
+                    Nenhuma bula encontrada na ANVISA para este medicamento.
+                  </p>
+                )}
+
+                {!bulaLoad && bulaLista.length > 0 && (
+                  <div className="divide-y divide-gray-50 max-h-64 overflow-y-auto">
+                    {bulaLista.map((b, i) => (
+                      <a
+                        key={i}
+                        href={b.urlPdf}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-start gap-2.5 px-3 py-2.5 hover:bg-indigo-50 transition-colors group"
+                      >
+                        <FileText size={14} className="text-indigo-400 shrink-0 mt-0.5 group-hover:text-indigo-600" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className={clsx(
+                              'text-[9px] font-bold px-1.5 py-0.5 rounded-full',
+                              b.tipoBula === 'PROFISSIONAL'
+                                ? 'bg-indigo-100 text-indigo-700'
+                                : 'bg-gray-100 text-gray-600'
+                            )}>
+                              {b.tipoBula === 'PROFISSIONAL' ? 'Profissional' : 'Paciente'}
+                            </span>
+                          </div>
+                          <p className="text-xs font-medium text-gray-700 truncate group-hover:text-indigo-700">
+                            {toTitleCase(b.nome || b.principioAtivo)}
+                          </p>
+                          {b.laboratorio && (
+                            <p className="text-[10px] text-gray-400 truncate">{toTitleCase(b.laboratorio)}</p>
+                          )}
+                        </div>
+                        <ExternalLink size={11} className="text-gray-300 shrink-0 mt-1 group-hover:text-indigo-500" />
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <textarea
         className="input w-full text-sm resize-none ml-7"
         rows={2}
